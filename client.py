@@ -18,11 +18,8 @@ client.connect(("192.168.100.11", 55050)) # Connect to the server
 def receiveMessageFromServer():
     while True:
         try:
-            message = client.recv(1024).decode('ascii')
-            if message == 'NICK':
-                client.send(nickname.encode('ascii'))
-            else:
-                print(message)
+            message = client.recv(1024).decode(FORMAT)
+            print(message)
         except:
             print("An error occured!")
             client.close()
@@ -30,11 +27,11 @@ def receiveMessageFromServer():
 
 def sendMessageToServer():
     while True:
-        message = '{}: {}'.format(nickname, input(''))
-        client.send(message.encode('ascii'))
+        message = '{}'.format(input(''))
+        client.send(message.encode(FORMAT))
 
 if __name__ == "__main__":
-    nickname = "ahmed"
+    nickname = "LOGIN e22e"
 
     receive_thread = threading.Thread(target=receiveMessageFromServer)
     receive_thread.start()
