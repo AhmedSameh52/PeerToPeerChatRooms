@@ -1,5 +1,6 @@
 import socket
 import threading
+import hashlib
 
 # Connect to OS ports
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -26,12 +27,15 @@ def receiveMessageFromServer():
             break
 
 def sendMessageToServer():
-    while True:
-        message = '{}'.format(input(''))
+        # LOGIN COMMAND TEST
+        username = '{}'.format(input('Username: '))
+        password = '{}'.format(input('Password: '))
+        password = hashlib.sha256(password.encode()).hexdigest()
+        message = f'CREATE <{username}> <{password}>'
         client.send(message.encode(FORMAT))
 
 if __name__ == "__main__":
-    nickname = "LOGIN e22e"
+    nickname = "nickname"
 
     receive_thread = threading.Thread(target=receiveMessageFromServer)
     receive_thread.start()
