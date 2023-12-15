@@ -2,6 +2,7 @@ import threading
 import socket
 import sqlite3
 import re
+from user import User
 
 HOST = socket.gethostbyname(socket.gethostname())
 PORT = 55050
@@ -11,12 +12,12 @@ server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind((HOST, PORT))
 server.listen()
 
-clients = []
-nicknames = []
+peersConnected = []
 
-def loginCommand(messageReceived):
+def loginCommand(messageReceived, address):
     #  ACCEPT 200 -> 0 /// FAILED 500 -> 1/// NOT_FOUND 401 -> 2 /// INCORRECT_PASSWORD 402 -> 3
     try:
+        ip, port = address
         username = re.search(r'<(.*?)>', messageReceived[1]).group(1)
         password = re.search(r'<(.*?)>', messageReceived[2]).group(1)
         if username == "" or password == "":
@@ -31,7 +32,8 @@ def loginCommand(messageReceived):
         if result:
             stored_password = result[0]
             if stored_password == password:
-                # Passwords match
+                newUser = User(username= username, password = password, ip_address = ip, port_number = port)
+                peersConnected.append(newUser)
                 return 0
             else:
                 # Passwords do not match
@@ -42,7 +44,7 @@ def loginCommand(messageReceived):
     except:
         return 1
 
-def signupCommand(messageReceived):
+def signupCommand(messageReceived, address):
     # ACCEPT 200 -> 0 /// USERNAME_TAKEN 400 -> 1 /// FAILED 500 -> 2
     try:
         username = re.search(r'<(.*?)>', messageReceived[1]).group(1)
@@ -60,6 +62,8 @@ def signupCommand(messageReceived):
         else:
             cur.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
             conn.commit()
+            newUser = User(username= username, password = password, ip_address = ip, port_number = port)
+            peersConnected.append(newUser)
             return 0
     except:
         return 2
@@ -68,34 +72,32 @@ def broadcast(message):
     for client in clients:
         client.send(message)
 
-def handle(client):
+def handle(client, ):
     while True:
         try:
             # Broadcasting Messages
             message = client.recv(1024)
-            broadcast(message)
+            # broadcast(message)
         except:
             # Removing And Closing Clients
             index = clients.index(client)
-            clients.remove(client)
             client.close()
-            nickname = nicknames[index]
             broadcast('{} left!'.format(nickname).encode(FORMAT))
-            nicknames.remove(nickname)
             break
 
 def receive():
     while True:
         # Accept Connection
         client, address = server.accept()
-        print("Connected with {}".format(str(address)))
+        ip, port = address  # Extract IP and port from the address tuple
+        print(f"Connected with {ip}:{port}")
 
         # Execute Commands according to Message Received
         messageReceived = client.recv(1024).decode(FORMAT).split(" ")
         match messageReceived[0]:
             # Send message command is not added as the server does not execute this command
             case "LOGIN":
-                responseCode = loginCommand(messageReceived)
+                responseCode = loginCommand(messageReceived, address)
                 if responseCode == 0:
                    client.send('ACCEPT 200'.encode(FORMAT))
                 elif responseCode == 1:
@@ -106,7 +108,7 @@ def receive():
                     client.send('INCORRECT_PASSWORD 402'.encode(FORMAT))
                 
             case "CREATE":
-                responseCode = signupCommand(messageReceived)
+                responseCode = signupCommand(messageReceived, address)
                 if responseCode == 0:
                    client.send('ACCEPT 200'.encode(FORMAT))
                 elif responseCode == 1:
@@ -137,17 +139,20 @@ def receive():
             case _:
                 print("command unknown!")
 
-        nicknames.append(messageReceived[0])
-        clients.append(client)
-
+        for peer in peersConnected:
+            print("Username:", peer.username)
+            print("Password:", peer.password)
+            print("IP Address:", peer.ip_address)
+            print("Port Number:", peer.port_number)
+            print("--------------------------------")
         # Print And Broadcast Nickname
         #("Nickname is {}".format(messageReceived[0]))
         #broadcast("{} joined!".format(messageReceived[0]).encode(FORMAT))
         #client.send('Connected to server!'.encode(FORMAT))
 
         # Start Handling Thread For Client
-        thread = threading.Thread(target=handle, args=(client,))
-        thread.start()
+        # thread = threading.Thread(target=handle, args=(client))
+        # thread.start()
 
 print("Server is listening...")
 receive()
