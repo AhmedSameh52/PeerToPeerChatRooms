@@ -93,6 +93,26 @@ def sendSignupRequst():
             client.close()
             break
 
+def sendLogoutRequst():
+    global isUserLoggedIn
+
+    message = 'LOGOUT'
+    client.send(message.encode(FORMAT))
+    while True:
+        try:
+            message = client.recv(1024).decode(FORMAT)
+            if message == "ACCEPT 200":
+                isUserLoggedIn = False
+                print("Logged Out Successfully!")
+                return
+            elif message == "FAILED 500":
+                print("An error has occured while logging out, please try again.")
+                return
+        except:
+            print("An error occured with the connection!")
+            client.close()
+            break
+
 if __name__ == "__main__":
     # receive_thread = threading.Thread(target=receiveMessageFromServer)
     # receive_thread.start()
@@ -124,7 +144,7 @@ if __name__ == "__main__":
         elif option == "5":
             print("Feature will be added later, stay tuned!")
         elif option == "6":
-            print("Feature will be added later, stay tuned!")
+            sendLogoutRequst()
         else:
             print("Invalid number")
             continue

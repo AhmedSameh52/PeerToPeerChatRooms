@@ -68,6 +68,21 @@ def signupCommand(messageReceived, address):
     except:
         return 2
 
+def logoutCommand(userObject):
+    # ACCEPT 200 -> 0 /// FAILED 500 -> 1
+    try:
+        index_to_remove = next((index for index, User in enumerate(peersConnected) if User.username == userObject.username and User.ip_address == userObject.ip_address and User.password == userObject.password and User.port_number == userObject.port_number), None)
+
+        # Remove the user from the array if found
+        if index_to_remove is not None:
+            del peersConnected[index_to_remove]
+            return 0
+        else:
+            return 1
+    except:
+        return 1
+
+
 def broadcast(message):
     for client in clients:
         client.send(message)
@@ -86,12 +101,12 @@ def handle(client, ):
             break
 
 def receive():
+    # Accept Connection
+    client, address = server.accept()
+    ip, port = address  # Extract IP and port from the address tuple
+    userObject = None
+    print(f"Connected with {ip}:{port}")
     while True:
-        # Accept Connection
-        client, address = server.accept()
-        ip, port = address  # Extract IP and port from the address tuple
-        print(f"Connected with {ip}:{port}")
-
         # Execute Commands according to Message Received
         messageReceived = client.recv(1024).decode(FORMAT).split(" ")
         match messageReceived[0]:
@@ -99,7 +114,10 @@ def receive():
             case "LOGIN":
                 responseCode = loginCommand(messageReceived, address)
                 if responseCode == 0:
-                   client.send('ACCEPT 200'.encode(FORMAT))
+                    userObject = next((User for User in peersConnected if User.ip_address == ip and User.port_number == port), None)
+                    if userObject == None:
+                        client.send('FAILED 500'.encode(FORMAT)) 
+                    client.send('ACCEPT 200'.encode(FORMAT))
                 elif responseCode == 1:
                     client.send('FAILED 500'.encode(FORMAT))
                 elif responseCode == 2:
@@ -110,14 +128,23 @@ def receive():
             case "CREATE":
                 responseCode = signupCommand(messageReceived, address)
                 if responseCode == 0:
-                   client.send('ACCEPT 200'.encode(FORMAT))
+                    userObject = next((User for User in peersConnected if User.ip_address == ip and User.port_number == port), None)
+                    if userObject == None:
+                        client.send('FAILED 500'.encode(FORMAT)) 
+                    client.send('ACCEPT 200'.encode(FORMAT))
                 elif responseCode == 1:
                     client.send('USERNAME_TAKEN 400'.encode(FORMAT))
                 elif responseCode == 2:
                     client.send('FAILED 500'.encode(FORMAT))
-     
-            case "LOGOUT":
-                print("logout command needs to be executed!")
+
+            case "LOGOUT":  
+                responseCode = logoutCommand(userObject)      
+                if responseCode == 0:
+                    userObject = None
+                    client.send('ACCEPT 200'.encode(FORMAT))
+                elif responseCode == 1:
+                    client.send('FAILED 500'.encode(FORMAT))
+
             case "LIST_ONLINE_USERS":
                 print("list online users command needs to be executed!")
             case "LIST_ONLINE_CHATROOMS":
