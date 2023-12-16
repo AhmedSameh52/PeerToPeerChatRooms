@@ -8,6 +8,7 @@ HOST = socket.gethostbyname(socket.gethostname())
 PORT = 55050
 FORMAT = 'utf-8' # Message Encoding Format
 
+# TCP CONNECTION
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind((HOST, PORT))
 server.listen()
@@ -100,9 +101,9 @@ def handle(client, ):
             broadcast('{} left!'.format(nickname).encode(FORMAT))
             break
 
-def receive():
+def receive(client, address):
     # Accept Connection
-    client, address = server.accept()
+    
     ip, port = address  # Extract IP and port from the address tuple
     userObject = None
     print(f"Connected with {ip}:{port}")
@@ -181,5 +182,15 @@ def receive():
         # thread = threading.Thread(target=handle, args=(client))
         # thread.start()
 
-print("Server is listening...")
-receive()
+def startConnectionWithClients():
+    while True:
+        try:
+            client, address = server.accept()
+            thread = threading.Thread(target=receive, args=(client,address,))
+            thread.start()
+        except:
+            pass
+
+if __name__ == "__main__":
+    print("Server is listening...")
+    startConnectionWithClients()
