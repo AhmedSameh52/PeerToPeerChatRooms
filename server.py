@@ -48,6 +48,7 @@ def loginCommand(messageReceived, address):
 def signupCommand(messageReceived, address):
     # ACCEPT 200 -> 0 /// USERNAME_TAKEN 400 -> 1 /// FAILED 500 -> 2
     try:
+        ip, port = address
         username = re.search(r'<(.*?)>', messageReceived[1]).group(1)
         password = re.search(r'<(.*?)>', messageReceived[2]).group(1)
 
