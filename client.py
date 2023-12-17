@@ -14,7 +14,7 @@ DISCONNECT_MESSAGE = "!DISCONNECT" # Disconnect when this message is recieved
 IPADDRESS = socket.gethostbyname(socket.gethostname())   # Get the local IP address
 ADDR = (IPADDRESS, PORT)
 
-client.connect(("192.168.100.11", 55050)) # Connect to the server
+client.connect(("197.52.196.173", 55050)) # Connect to the server
 
 isUserLoggedIn = False
 
