@@ -1,11 +1,15 @@
 import socket
 import threading
 import hashlib
+import time
 
-# Connect to OS ports
+
+
+# Connect to OS ports TCP CONNECTION
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client.bind(('', 0))
 PORT = client.getsockname()[1] # Client Port Number (Randomized by OS)
+client.connect(("192.168.100.11", 55050)) # Connect to the server
 
 # CONSTANTS
 HEADER = 64 # Header Size
@@ -14,9 +18,25 @@ DISCONNECT_MESSAGE = "!DISCONNECT" # Disconnect when this message is recieved
 IPADDRESS = socket.gethostbyname(socket.gethostname())   # Get the local IP address
 ADDR = (IPADDRESS, PORT)
 
-client.connect(("192.168.100.11", 55050)) # Connect to the server
-
 isUserLoggedIn = False
+clientUsername = None
+# Connect to OS ports UDP CONNECTION
+def UDPConnection():
+    global clientUsername
+
+    sockUDP = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sockUDP.bind(('', 0))
+    try:
+        while True: 
+            if clientUsername is not None:
+                sockUDP.sendto(f"HELLO <{clientUsername}>".encode(FORMAT), ("192.168.100.11", 55051))
+                # print("message should be sent")
+                time.sleep(3)
+    except Exception as e: 
+        sockUDP.close()
+        print(e)
+
+
 
 def receiveMessageFromServer():
     while True:
@@ -38,6 +58,7 @@ def sendMessageToServer(message):
 
 def sendLoginRequest():
     global isUserLoggedIn
+    global clientUsername
 
     username = '{}'.format(input('Username: '))
     password = '{}'.format(input('Password: '))
@@ -50,6 +71,7 @@ def sendLoginRequest():
             message = client.recv(1024).decode(FORMAT)
             if message == "ACCEPT 200":
                 isUserLoggedIn = True
+                clientUsername = username
                 print("Login Success!")
                 return
             elif message == "NOT_FOUND 401":
@@ -68,6 +90,7 @@ def sendLoginRequest():
 
 def sendSignupRequst():
     global isUserLoggedIn
+    global clientUsername
 
     username = '{}'.format(input('Username: '))
     password = '{}'.format(input('Password: '))
@@ -80,6 +103,7 @@ def sendSignupRequst():
             message = client.recv(1024).decode(FORMAT)
             if message == "ACCEPT 200":
                 isUserLoggedIn = True
+                clientUsername = username
                 print("Account Created Successfully!")
                 return
             elif message == "USERNAME_TAKEN 400":
@@ -95,6 +119,7 @@ def sendSignupRequst():
 
 def sendLogoutRequst():
     global isUserLoggedIn
+    global clientUsername
 
     message = 'LOGOUT'
     client.send(message.encode(FORMAT))
@@ -103,6 +128,7 @@ def sendLogoutRequst():
             message = client.recv(1024).decode(FORMAT)
             if message == "ACCEPT 200":
                 isUserLoggedIn = False
+                clientUsername = None
                 print("Logged Out Successfully!")
                 return
             elif message == "FAILED 500":
@@ -114,8 +140,9 @@ def sendLogoutRequst():
             break
 
 if __name__ == "__main__":
-    # receive_thread = threading.Thread(target=receiveMessageFromServer)
-    # receive_thread.start()
+    # Start UDP Socket Thread
+    helloThread = threading.Thread(target=UDPConnection)
+    helloThread.start()
     print("Welcome to ASU Chatrooms!\nSelect an option from the list")
     while True:
         if not(isUserLoggedIn):
@@ -150,7 +177,6 @@ if __name__ == "__main__":
             continue
         
 
-        # write_thread = threading.Thread(target=sendMessageToServer)
-        # write_thread.start()
+        
 
 
