@@ -85,103 +85,86 @@ def logoutCommand(userObject):
         return 1
 
 
-def broadcast(message):
-    for client in clients:
-        client.send(message)
-
-def handle(client, ):
-    while True:
-        try:
-            # Broadcasting Messages
-            message = client.recv(1024)
-            # broadcast(message)
-        except:
-            # Removing And Closing Clients
-            index = clients.index(client)
-            client.close()
-            broadcast('{} left!'.format(nickname).encode(FORMAT))
-            break
 
 def receive(client, address):
     # Accept Connection
-    
     ip, port = address  # Extract IP and port from the address tuple
     userObject = None
     print(f"Connected with {ip}:{port}")
-    while True:
-        # Execute Commands according to Message Received
-        messageReceived = client.recv(1024).decode(FORMAT).split(" ")
-        match messageReceived[0]:
-            # Send message command is not added as the server does not execute this command
-            case "LOGIN":
-                responseCode = loginCommand(messageReceived, address)
-                if responseCode == 0:
-                    userObject = next((User for User in peersConnected if User.ip_address == ip and User.port_number == port), None)
-                    if userObject == None:
-                        client.send('FAILED 500'.encode(FORMAT)) 
-                    client.send('ACCEPT 200'.encode(FORMAT))
-                elif responseCode == 1:
-                    client.send('FAILED 500'.encode(FORMAT))
-                elif responseCode == 2:
-                    client.send('NOT_FOUND 401'.encode(FORMAT))
-                elif responseCode == 3:
-                    client.send('INCORRECT_PASSWORD 402'.encode(FORMAT))
-                
-            case "CREATE":
-                responseCode = signupCommand(messageReceived, address)
-                if responseCode == 0:
-                    userObject = next((User for User in peersConnected if User.ip_address == ip and User.port_number == port), None)
-                    if userObject == None:
-                        client.send('FAILED 500'.encode(FORMAT)) 
-                    client.send('ACCEPT 200'.encode(FORMAT))
-                elif responseCode == 1:
-                    client.send('USERNAME_TAKEN 400'.encode(FORMAT))
-                elif responseCode == 2:
-                    client.send('FAILED 500'.encode(FORMAT))
+    try:
+        while True:
+            # Execute Commands according to Message Received
+            messageReceived = client.recv(1024).decode(FORMAT).split(" ")
+            match messageReceived[0]:
+                # Send message command is not added as the server does not execute this command
+                case "LOGIN":
+                    responseCode = loginCommand(messageReceived, address)
+                    if responseCode == 0:
+                        userObject = next((User for User in peersConnected if User.ip_address == ip and User.port_number == port), None)
+                        if userObject == None:
+                            client.send('FAILED 500'.encode(FORMAT)) 
+                        client.send('ACCEPT 200'.encode(FORMAT))
+                    elif responseCode == 1:
+                        client.send('FAILED 500'.encode(FORMAT))
+                    elif responseCode == 2:
+                        client.send('NOT_FOUND 401'.encode(FORMAT))
+                    elif responseCode == 3:
+                        client.send('INCORRECT_PASSWORD 402'.encode(FORMAT))
+                    
+                case "CREATE":
+                    responseCode = signupCommand(messageReceived, address)
+                    if responseCode == 0:
+                        userObject = next((User for User in peersConnected if User.ip_address == ip and User.port_number == port), None)
+                        if userObject == None:
+                            client.send('FAILED 500'.encode(FORMAT)) 
+                        client.send('ACCEPT 200'.encode(FORMAT))
+                    elif responseCode == 1:
+                        client.send('USERNAME_TAKEN 400'.encode(FORMAT))
+                    elif responseCode == 2:
+                        client.send('FAILED 500'.encode(FORMAT))
 
-            case "LOGOUT":  
-                responseCode = logoutCommand(userObject)      
-                if responseCode == 0:
-                    userObject = None
-                    client.send('ACCEPT 200'.encode(FORMAT))
-                elif responseCode == 1:
-                    client.send('FAILED 500'.encode(FORMAT))
+                case "LOGOUT":  
+                    responseCode = logoutCommand(userObject)      
+                    if responseCode == 0:
+                        userObject = None
+                        client.send('ACCEPT 200'.encode(FORMAT))
+                    elif responseCode == 1:
+                        client.send('FAILED 500'.encode(FORMAT))
 
-            case "LIST_ONLINE_USERS":
-                print("list online users command needs to be executed!")
-            case "LIST_ONLINE_CHATROOMS":
-                print("list online chatrooms command needs to be executed!")
-            case "CREATE_ROOM":
-                print("create room command needs to be executed!")
-            case "JOIN_ROOM":
-                print("join room command needs to be executed!")
-            case "LEAVE_ROOM":
-                print("leave room command needs to be executed!")
-            case "KICK":
-                print("kick command needs to be executed!")
-            case "INVITE":
-                print("invite command needs to be executed!")
-            case "LEAVE_CHAT":
-                print("leave chat command needs to be executed!")
-            case "HELLO":
-                print("hello command needs to be executed!")
-            case _:
-                print("command unknown!")
+                case "LIST_ONLINE_USERS":
+                    print("list online users command needs to be executed!")
+                case "LIST_ONLINE_CHATROOMS":
+                    print("list online chatrooms command needs to be executed!")
+                case "CREATE_ROOM":
+                    print("create room command needs to be executed!")
+                case "JOIN_ROOM":
+                    print("join room command needs to be executed!")
+                case "LEAVE_ROOM":
+                    print("leave room command needs to be executed!")
+                case "KICK":
+                    print("kick command needs to be executed!")
+                case "INVITE":
+                    print("invite command needs to be executed!")
+                case "LEAVE_CHAT":
+                    print("leave chat command needs to be executed!")
+                case "HELLO":
+                    print("hello command needs to be executed!")
+                case _:
+                    print("command unknown!")
 
-        for peer in peersConnected:
-            print("Username:", peer.username)
-            print("Password:", peer.password)
-            print("IP Address:", peer.ip_address)
-            print("Port Number:", peer.port_number)
-            print("--------------------------------")
-        # Print And Broadcast Nickname
-        #("Nickname is {}".format(messageReceived[0]))
-        #broadcast("{} joined!".format(messageReceived[0]).encode(FORMAT))
-        #client.send('Connected to server!'.encode(FORMAT))
-
-        # Start Handling Thread For Client
-        # thread = threading.Thread(target=handle, args=(client))
-        # thread.start()
+            print("\n--------------Connected Peers------------------")
+            for peer in peersConnected:
+                print("Username:", peer.username)
+                print("Password:", peer.password)
+                print("IP Address:", peer.ip_address)
+                print("Port Number:", peer.port_number)
+                print("--------------------------------")
+    except:
+        index_to_remove = next((index for index, User in enumerate(peersConnected) if User.username == userObject.username and User.ip_address == userObject.ip_address and User.password == userObject.password and User.port_number == userObject.port_number), None)
+            
+        if index_to_remove is not None:
+            del peersConnected[index_to_remove]
+        client.close()
 
 def startConnectionWithClients():
     while True:
