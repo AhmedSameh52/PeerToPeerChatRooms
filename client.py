@@ -153,6 +153,35 @@ def sendLogoutRequst():
                 print(f"{BRIGHT}{RED}An error has occured while logging out, please try again.")
                 print(Style.RESET_ALL)
                 return
+        except:   
+            print(f"{BRIGHT}{RED}An error occured with the connection!")
+            print(Style.RESET_ALL)
+            client.close()
+            break
+
+def sendListOnlineUsersRequest():
+    message = 'LIST_ONLINE_USERS'
+    client.send(message.encode(FORMAT))
+    while True:
+        try:
+            message = client.recv(1024).decode(FORMAT)
+            if "ACCEPT 200" in message:
+                message = message.replace("ACCEPT 200", '')
+                message = message.replace("<", '')
+                message = message.replace(">", '')
+                onlineUsersList = [word for word in message.split() if word] # Split the message into a list
+
+                print(f"{BRIGHT}{GREEN}Command Executed Successfully!")
+                print(Style.RESET_ALL)
+                print(f"{BRIGHT}{WHITE}Online Users: ")
+                for user in onlineUsersList:
+                    print(f"{BRIGHT}{CYAN}{user}")
+                print(Style.RESET_ALL)
+                return
+            elif message == "FAILED 500":
+                print(f"{BRIGHT}{RED}An error has occured while executing the command, please try again.")
+                print(Style.RESET_ALL)
+                return
         except:
             print(f"{BRIGHT}{RED}An error occured with the connection!")
             print(Style.RESET_ALL)
@@ -187,8 +216,8 @@ if __name__ == "__main__":
         option = '{}'.format(input(f"{MAGENTA}Enter a number: {YELLOW}{ITALIC}"))
         print(Style.RESET_ALL)
         if option == "1":
-            print(f"{BRIGHT}Feature will be added later, stay tuned!")
-            print(Style.RESET_ALL)
+            sendListOnlineUsersRequest()
+            continue
         elif option == "2":
             print(f"{BRIGHT}Feature will be added later, stay tuned!")
             print(Style.RESET_ALL)

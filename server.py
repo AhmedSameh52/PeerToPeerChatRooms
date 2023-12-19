@@ -119,6 +119,17 @@ def logoutCommand(userObject):
     except:
         return 1
 
+def listOnlineUsersCommand(client):
+    try:
+        peersUsername = "<"
+        for peer in peersConnected:
+            peersUsername = peersUsername + peer.username + ' '
+        peersUsername = peersUsername[:-1] + '>' # Remove the last space and replace it with closing angle brackets
+        message = "ACCEPT 200 " + peersUsername
+        client.send(message.encode(FORMAT))
+    except:
+        client.send('FAILED 500'.encode(FORMAT))
+
 
 
 def receive(client, address):
@@ -167,7 +178,15 @@ def receive(client, address):
                         client.send('FAILED 500'.encode(FORMAT))
 
                 case "LIST_ONLINE_USERS":
-                    print("list online users command needs to be executed!")
+                    try:
+                        peersUsername = "<"
+                        for peer in peersConnected:
+                            peersUsername = peersUsername + peer.username + ' '
+                        peersUsername = peersUsername[:-1] + '>' # Remove the last space and replace it with closing angle brackets
+                        message = "ACCEPT 200 " + peersUsername
+                        client.send(message.encode(FORMAT))
+                    except:
+                        client.send('FAILED 500'.encode(FORMAT))
                 case "LIST_ONLINE_CHATROOMS":
                     print("list online chatrooms command needs to be executed!")
                 case "CREATE_ROOM":
@@ -185,7 +204,7 @@ def receive(client, address):
                 case "HELLO":
                     print("hello command needs to be executed!")
                 case _:
-                    print("command unknown!")
+                    print(messageReceived)
 
             print("\n--------------Connected Peers------------------")
             for peer in peersConnected:
