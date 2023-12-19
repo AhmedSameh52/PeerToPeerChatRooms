@@ -196,7 +196,6 @@ def receive(client, address):
                 print("--------------------------------")
     except:
         index_to_remove = next((index for index, User in enumerate(peersConnected) if User.username == userObject.username and User.ip_address == userObject.ip_address and User.password == userObject.password and User.port_number == userObject.port_number), None)
-            
         if index_to_remove is not None:
             del peersConnected[index_to_remove]
         client.close()
