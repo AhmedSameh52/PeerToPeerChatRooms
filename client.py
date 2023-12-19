@@ -9,7 +9,7 @@ import time
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client.bind(('', 0))
 PORT = client.getsockname()[1] # Client Port Number (Randomized by OS)
-client.connect(("192.168.100.11", 55050)) # Connect to the server
+client.connect(('localhost', 55050)) # Connect to the server
 
 # CONSTANTS
 HEADER = 64 # Header Size
@@ -29,7 +29,7 @@ def UDPConnection():
     try:
         while True: 
             if clientUsername is not None:
-                sockUDP.sendto(f"HELLO <{clientUsername}>".encode(FORMAT), ("192.168.100.11", 55051))
+                sockUDP.sendto(f"HELLO <{clientUsername}>".encode(FORMAT), ('localhost', 55555))
                 # print("message should be sent")
                 time.sleep(3)
     except Exception as e: 
@@ -62,7 +62,7 @@ def sendLoginRequest():
 
     username = '{}'.format(input('Username: '))
     password = '{}'.format(input('Password: '))
-    print("Processing....")
+    print("\nProcessing....\n")
     password = hashlib.sha256(password.encode()).hexdigest()
     message = f'LOGIN <{username}> <{password}>'
     client.send(message.encode(FORMAT))
@@ -158,7 +158,7 @@ if __name__ == "__main__":
             else:
                 print("Invalid number")
                 continue
-        print("1- List Online Users\n2- List Online Chatrooms\n3- Create Chatroom\n4- Join Chatroom\n5- Private Chat\n6- Logout")
+        print("\n1- List Online Users\n2- List Online Chatrooms\n3- Create Chatroom\n4- Join Chatroom\n5- Private Chat\n6- Logout")
         option = '{}'.format(input('Enter a number: '))
         if option == "1":
             print("Feature will be added later, stay tuned!")

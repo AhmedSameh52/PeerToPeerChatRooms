@@ -7,7 +7,7 @@ import time
 
 HOST = socket.gethostbyname(socket.gethostname())
 PORT = 55050
-UDPPORT = 55051
+UDPPORT = 55555
 FORMAT = 'utf-8' # Message Encoding Format
 
 peersConnected = []
@@ -204,12 +204,12 @@ def receive(client, address):
 def startConnectionWithClients():
     # TCP CONNECTION
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind((HOST, PORT))
+    server.bind(('localhost', PORT))
     server.listen()
 
     #UDP CONNECTION
     UDPsocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    UDPsocket.bind((HOST, UDPPORT))
+    UDPsocket.bind(('localhost', UDPPORT))
 
     #Start Hello Timer
     timerThread = threading.Thread(target=decreaseHelloTimers)
