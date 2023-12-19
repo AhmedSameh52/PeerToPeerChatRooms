@@ -188,6 +188,34 @@ def sendListOnlineUsersRequest():
             client.close()
             break
 
+def sendResetPasswordRequst():
+    global clientUsername
+
+    password = '{}'.format(input(f"{MAGENTA}New Password: {YELLOW}{ITALIC}"))
+    password = hashlib.sha256(password.encode()).hexdigest()
+    print(Style.RESET_ALL)
+    print(f"{BRIGHT}Processing....")
+    print(Style.RESET_ALL)
+
+    message = f"RESET_PASSWORD <{clientUsername}> <{password}>"
+    client.send(message.encode(FORMAT))
+    while True:
+        try:
+            message = client.recv(1024).decode(FORMAT)
+            if message == "ACCEPT 200":
+                print(f"{BRIGHT}{GREEN}Password Reset Successfully!")
+                print(Style.RESET_ALL)
+                return
+            elif message == "FAILED 500":
+                print(f"{BRIGHT}{RED}An error has occured while resetting the password, please try again.")
+                print(Style.RESET_ALL)
+                return
+        except:   
+            print(f"{BRIGHT}{RED}An error occured with the connection!")
+            print(Style.RESET_ALL)
+            client.close()
+            break
+
 if __name__ == "__main__":
     # Start UDP Socket Thread
     helloThread = threading.Thread(target=UDPConnection)
@@ -212,7 +240,7 @@ if __name__ == "__main__":
                 print(f"{RED}Invalid number")
                 print(Style.RESET_ALL)
                 continue
-        print(f"{YELLOW}1- {BLUE}List Online Users\n{YELLOW}2- {BLUE}List Online Chatrooms\n{YELLOW}3- {BLUE}Create Chatroom\n{YELLOW}4- {BLUE}Join Chatroom\n{YELLOW}5- {BLUE}Private Chat\n{YELLOW}6- {BLUE}Logout\n")
+        print(f"{YELLOW}1- {BLUE}List Online Users\n{YELLOW}2- {BLUE}List Online Chatrooms\n{YELLOW}3- {BLUE}Create Chatroom\n{YELLOW}4- {BLUE}Join Chatroom\n{YELLOW}5- {BLUE}Private Chat\n{YELLOW}6- {BLUE}Reset Password\n{YELLOW}7- {BLUE}Logout\n")
         option = '{}'.format(input(f"{MAGENTA}Enter a number: {YELLOW}{ITALIC}"))
         print(Style.RESET_ALL)
         if option == "1":
@@ -231,6 +259,8 @@ if __name__ == "__main__":
             print(f"{BRIGHT}Feature will be added later, stay tuned!")
             print(Style.RESET_ALL)
         elif option == "6":
+            sendResetPasswordRequst()
+        elif option == "7":
             sendLogoutRequst()
         else:
             print(f"{RED}Invalid number")

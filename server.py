@@ -130,6 +130,32 @@ def listOnlineUsersCommand(client):
     except:
         client.send('FAILED 500'.encode(FORMAT))
 
+def resetPasswordCommand(messageReceived, address, userObject):
+    # ACCEPT 200 -> 0 /// FAILED 500 -> 1
+    try:
+        ip, port = address
+        username = re.search(r'<(.*?)>', messageReceived[1]).group(1)
+        password = re.search(r'<(.*?)>', messageReceived[2]).group(1)
+
+        conn = sqlite3.connect("networksProject.db")
+        cur = conn.cursor()
+
+        # Remove the old peer from the list
+        index_to_remove = next((index for index, User in enumerate(peersConnected) if User.username == userObject.username and User.ip_address == userObject.ip_address and User.password == userObject.password and User.port_number == userObject.port_number), None)
+
+        # Remove the user from the array if found
+        if index_to_remove is not None:
+            del peersConnected[index_to_remove]
+        else:
+            return 1
+
+        cur.execute("UPDATE users SET password = ? WHERE username = ?", (password, username))
+        conn.commit()
+        newUser = User(username= username, password = password, ip_address = ip, port_number = port)
+        peersConnected.append(newUser)
+        return 0
+    except:
+        return 1
 
 
 def receive(client, address):
@@ -203,6 +229,14 @@ def receive(client, address):
                     print("leave chat command needs to be executed!")
                 case "HELLO":
                     print("hello command needs to be executed!")
+                case "RESET_PASSWORD":
+                    responseCode = resetPasswordCommand(messageReceived, address, userObject)      
+                    if responseCode == 0:
+                        userObject = next((User for User in peersConnected if User.ip_address == ip and User.port_number == port), None)
+                        client.send('ACCEPT 200'.encode(FORMAT))
+                    elif responseCode == 1:
+                        client.send('FAILED 500'.encode(FORMAT))
+
                 case _:
                     print(messageReceived)
 
