@@ -3,6 +3,7 @@ import socket
 import sqlite3
 import re
 from user import User
+from chatRoom import ChatRoom
 import time
 
 HOST = socket.gethostbyname(socket.gethostname())
@@ -11,6 +12,7 @@ UDPPORT = 55555
 FORMAT = 'utf-8' # Message Encoding Format
 
 peersConnected = []
+chatroomsOnline = []
 
 def decreaseHelloTimers():
     global peersConnected
@@ -157,6 +159,23 @@ def resetPasswordCommand(messageReceived, address, userObject):
     except:
         return 1
 
+def createChatroomCommand(messageReceived, userObject):
+    # ACCEPT 200 -> 0 /// NAME_EXISTS 403 -> 1 /// FAILED 500 -> 2 
+    try:
+        chatRoomName = re.search(r'<(.*?)>', messageReceived[1]).group(1)
+
+        index = next((index for index, ChatRoom in enumerate(chatroomsOnline) if ChatRoom.chatRoomName == chatRoomName), None)
+        if index is not None:
+            return 1 # Name already exists
+        
+        # Create chatroom 
+        newChatroom = ChatRoom(chatRoomName = chatRoomName, admin= userObject)
+        chatroomsOnline.append(newChatroom)
+        return 0
+    except:
+        print(e)
+        return 2
+
 
 def receive(client, address):
     # Accept Connection
@@ -216,7 +235,13 @@ def receive(client, address):
                 case "LIST_ONLINE_CHATROOMS":
                     print("list online chatrooms command needs to be executed!")
                 case "CREATE_ROOM":
-                    print("create room command needs to be executed!")
+                    responseCode = createChatroomCommand(messageReceived, userObject)
+                    if responseCode == 0:
+                        client.send('ACCEPT 200'.encode(FORMAT))
+                    elif responseCode == 1:
+                        client.send('NAME_EXISTS 403'.encode(FORMAT))
+                    elif responseCode == 2:
+                        client.send('FAILED 500'.encode(FORMAT))
                 case "JOIN_ROOM":
                     print("join room command needs to be executed!")
                 case "LEAVE_ROOM":
@@ -247,6 +272,14 @@ def receive(client, address):
                 print("IP Address:", peer.ip_address)
                 print("Port Number:", peer.port_number)
                 print("--------------------------------")
+            print("\n--------------Online Rooms------------------")
+            for room in chatroomsOnline:
+                print("Room Name:", room.chatRoomName)
+                print("Admin Name:", room.admin.username)
+                print("Admin IP Address:", room.admin.ip_address)
+                print("Admin Port Number:", room.admin.port_number)
+                print("--------------------------------")
+            print("----------------------------------------------------")
     except:
         index_to_remove = next((index for index, User in enumerate(peersConnected) if User.username == userObject.username and User.ip_address == userObject.ip_address and User.password == userObject.password and User.port_number == userObject.port_number), None)
         if index_to_remove is not None:

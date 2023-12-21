@@ -216,6 +216,37 @@ def sendResetPasswordRequst():
             client.close()
             break
 
+def sendCreateChatroomRequest():
+    # 1 -> room created successfully, 0 -> room creation failed 
+    roomName = '{}'.format(input(f"{MAGENTA}Room Name: {YELLOW}{ITALIC}"))
+    print(Style.RESET_ALL)
+    print(f"{BRIGHT}Processing....")
+    print(Style.RESET_ALL)
+
+    message = f"CREATE_ROOM <{roomName}>"
+    client.send(message.encode(FORMAT))
+    while True:
+        try:
+            message = client.recv(1024).decode(FORMAT)
+            if message == "ACCEPT 200":
+                print(f"{BRIGHT}{GREEN}Room Created Successfully with namr {roomName}!")
+                print(Style.RESET_ALL)
+                return 1
+            elif message == "NAME_EXISTS 403":
+                print(f"{BRIGHT}{RED}Name of the room already exists, please try again.")
+                print(Style.RESET_ALL)
+                return 0
+            elif message == "FAILED 500":
+                print(f"{BRIGHT}{RED}An error has occured while creating the room, please try again.")
+                print(Style.RESET_ALL)
+                return 0
+        except:   
+            print(f"{BRIGHT}{RED}An error occured with the connection!")
+            print(Style.RESET_ALL)
+            client.close()
+            break
+    return 0
+
 if __name__ == "__main__":
     # Start UDP Socket Thread
     helloThread = threading.Thread(target=UDPConnection)
@@ -250,8 +281,9 @@ if __name__ == "__main__":
             print(f"{BRIGHT}Feature will be added later, stay tuned!")
             print(Style.RESET_ALL)
         elif option == "3":
-            print(f"{BRIGHT}Feature will be added later, stay tuned!")
-            print(Style.RESET_ALL)
+            responseCode = sendCreateChatroomRequest()
+            if responseCode == 1:
+                pass
         elif option == "4":
             print(f"{BRIGHT}Feature will be added later, stay tuned!")
             print(Style.RESET_ALL)
