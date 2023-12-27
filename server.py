@@ -70,7 +70,7 @@ def loginCommand(messageReceived, address):
         if result:
             stored_password = result[0]
             if stored_password == password:
-                newUser = User(username= username, password = password, ip_address = ip, port_number = port)
+                newUser = User(username= username, password = password, ip_address = ip, port_number = port, accept_peer_port_number = -1)
                 peersConnected.append(newUser)
                 return 0
             else:
@@ -79,7 +79,8 @@ def loginCommand(messageReceived, address):
         else:
             # Username not found
             return 2
-    except:
+    except Exception as e:
+        print(e)
         return 1
 
 def signupCommand(messageReceived, address):
@@ -101,7 +102,7 @@ def signupCommand(messageReceived, address):
         else:
             cur.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
             conn.commit()
-            newUser = User(username= username, password = password, ip_address = ip, port_number = port)
+            newUser = User(username= username, password = password, ip_address = ip, port_number = port, accept_peer_port_number = -1)
             peersConnected.append(newUser)
             return 0
     except:
@@ -153,7 +154,7 @@ def resetPasswordCommand(messageReceived, address, userObject):
 
         cur.execute("UPDATE users SET password = ? WHERE username = ?", (password, username))
         conn.commit()
-        newUser = User(username= username, password = password, ip_address = ip, port_number = port)
+        newUser = User(username= username, password = password, ip_address = ip, port_number = port, accept_peer_port_number = -1)
         peersConnected.append(newUser)
         return 0
     except:
@@ -163,18 +164,46 @@ def createChatroomCommand(messageReceived, userObject):
     # ACCEPT 200 -> 0 /// NAME_EXISTS 403 -> 1 /// FAILED 500 -> 2 
     try:
         chatRoomName = re.search(r'<(.*?)>', messageReceived[1]).group(1)
+        newPortNumber = re.search(r'<(.*?)>', messageReceived[2]).group(1)
 
         index = next((index for index, ChatRoom in enumerate(chatroomsOnline) if ChatRoom.chatRoomName == chatRoomName), None)
         if index is not None:
             return 1 # Name already exists
-        
+        userObject.accept_peer_port_number = newPortNumber
         # Create chatroom 
         newChatroom = ChatRoom(chatRoomName = chatRoomName, admin= userObject)
         chatroomsOnline.append(newChatroom)
         return 0
     except:
-        print(e)
         return 2
+    
+def deleteChatroomCommand(messageReceived):
+    # ACCEPT 200 -> 0 /// FAILED 500 -> 1 
+    try:
+        chatRoomName = re.search(r'<(.*?)>', messageReceived[1]).group(1)
+
+        index = next((index for index, ChatRoom in enumerate(chatroomsOnline) if ChatRoom.chatRoomName == chatRoomName), None)
+        if index is None:
+            return 1 # Name not found
+        
+        # Delete chatroom 
+        del chatroomsOnline[index]
+        return 0
+    except:
+        return 1
+    
+def joinChatroomCommand(messageReceived):
+    # ACCEPT 200 -> 0 /// FAILED 500 -> 1 
+    try:
+        chatRoomName = re.search(r'<(.*?)>', messageReceived[1]).group(1)
+
+        index = next((index for index, ChatRoom in enumerate(chatroomsOnline) if ChatRoom.chatRoomName == chatRoomName), None)
+        
+        ipAdmin = chatroomsOnline[index].admin.ip_address
+        portAdmin = chatroomsOnline[index].admin.accept_peer_port_number
+        return 0, ipAdmin, portAdmin
+    except:
+        return 1, 0, 0
 
 
 def receive(client, address):
@@ -242,8 +271,18 @@ def receive(client, address):
                         client.send('NAME_EXISTS 403'.encode(FORMAT))
                     elif responseCode == 2:
                         client.send('FAILED 500'.encode(FORMAT))
+                case "DELETE_ROOM":
+                    responseCode = deleteChatroomCommand(messageReceived)
+                    if responseCode == 0:
+                        client.send('ACCEPT 200'.encode(FORMAT))
+                    elif responseCode == 1:
+                        client.send('FAILED 500'.encode(FORMAT))
                 case "JOIN_ROOM":
-                    print("join room command needs to be executed!")
+                    responseCode, ipAdmin, portAdmin = joinChatroomCommand(messageReceived)
+                    if responseCode == 0:
+                        client.send(f"ACCEPT 200 <{ipAdmin}> <{portAdmin}>".encode(FORMAT))
+                    elif responseCode == 1:
+                        client.send('FAILED 500'.encode(FORMAT))
                 case "LEAVE_ROOM":
                     print("leave room command needs to be executed!")
                 case "KICK":
@@ -277,7 +316,7 @@ def receive(client, address):
                 print("Room Name:", room.chatRoomName)
                 print("Admin Name:", room.admin.username)
                 print("Admin IP Address:", room.admin.ip_address)
-                print("Admin Port Number:", room.admin.port_number)
+                print("Admin Port Number:", room.admin.accept_peer_port_number)
                 print("--------------------------------")
             print("----------------------------------------------------")
     except:
