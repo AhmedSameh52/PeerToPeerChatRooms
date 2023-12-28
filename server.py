@@ -132,6 +132,17 @@ def listOnlineUsersCommand(client):
         client.send(message.encode(FORMAT))
     except:
         client.send('FAILED 500'.encode(FORMAT))
+        
+def listOnlineChatroomsCommand(client):
+    try:
+        peersRooms = "<"
+        for chatroom in chatroomsOnline:
+            peersRooms = peersRooms + chatroom.chatRoomName + ' '
+        peersRooms = peersRooms[:-1] + '>' # Remove the last space and replace it with closing angle brackets
+        message = "ACCEPT 200 " + peersRooms
+        client.send(message.encode(FORMAT))
+    except:
+        client.send('FAILED 500'.encode(FORMAT))
 
 def resetPasswordCommand(messageReceived, address, userObject):
     # ACCEPT 200 -> 0 /// FAILED 500 -> 1
@@ -252,17 +263,9 @@ def receive(client, address):
                         client.send('FAILED 500'.encode(FORMAT))
 
                 case "LIST_ONLINE_USERS":
-                    try:
-                        peersUsername = "<"
-                        for peer in peersConnected:
-                            peersUsername = peersUsername + peer.username + ' '
-                        peersUsername = peersUsername[:-1] + '>' # Remove the last space and replace it with closing angle brackets
-                        message = "ACCEPT 200 " + peersUsername
-                        client.send(message.encode(FORMAT))
-                    except:
-                        client.send('FAILED 500'.encode(FORMAT))
+                    listOnlineUsersCommand(client)
                 case "LIST_ONLINE_CHATROOMS":
-                    print("list online chatrooms command needs to be executed!")
+                    listOnlineChatroomsCommand(client)
                 case "CREATE_ROOM":
                     responseCode = createChatroomCommand(messageReceived, userObject)
                     if responseCode == 0:
