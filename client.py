@@ -5,7 +5,7 @@ import time
 import re
 # import getpass
 from formats import MAGENTA,WHITE,Style,BLUE,RED,ITALIC,YELLOW,BRIGHT,GREEN,CYAN,MAGENTA_BG
-from peer import handleChatRoomAdmin, handleChatRoomPeer
+from peer import acceptPeersAdmin, connectToAdmin, listenToAdmin, sendMessageChatroomAdmin, sendMessageChatRoom, listenToPeersAsAdmin, listenToPeers
 
 
 
@@ -260,7 +260,7 @@ def sendResetPasswordRequst():
             break
         
 def sendCreateChatroomRequest(newPortNumber):
-    # 1 -> room created successfully, 0 -> room creation failed 
+    # 1 -> room created successfully, 0 -> room creation failed 2-> room name exists
     roomName = '{}'.format(input(f"{MAGENTA}Room Name: {YELLOW}{ITALIC}"))
     print(Style.RESET_ALL)
     print(f"{BRIGHT}Processing....")
@@ -278,7 +278,7 @@ def sendCreateChatroomRequest(newPortNumber):
             elif message == "NAME_EXISTS 403":
                 print(f"{BRIGHT}{RED}Name of the room already exists, please try again.")
                 print(Style.RESET_ALL)
-                return 0, roomName
+                return 2, roomName
             elif message == "FAILED 500":
                 print(f"{BRIGHT}{RED}An error has occured while creating the room, please try again.")
                 print(Style.RESET_ALL)
@@ -332,41 +332,60 @@ if __name__ == "__main__":
             peerNodeServer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             peerNodeServer.bind(('localhost', 0))
             peerPortNumber = peerNodeServer.getsockname()[1] # Gets the Port Number (Randomized by OS)
-
+            peerNodeServer.listen()
             responseCode, roomName = sendCreateChatroomRequest(peerPortNumber)
 
-            peerNodeServer.listen()
-            
-            peerNodeListen = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            peerNodeListen.bind(('localhost', 0))
-            peerIPListen = peerNodeListen.getsockname()[0]
-            peerPortNumberListen = peerNodeListen.getsockname()[1]
-            peerNodeListen.listen()
-            
-            
             if responseCode == 1:
-                handleChatRoomAdmin(roomName, peerNodeServer, peerNodeListen,peerIPListen, peerPortNumberListen, client, clientUsername)
+                broadcastUDP = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                broadcastUDP.bind(('localhost', 0))
+                broadcastIP = broadcastUDP.getsockname()[0]
+                broadcastUDPPort = broadcastUDP.getsockname()[1]
+            
+                acceptPeersAdminThread = threading.Thread(target=acceptPeersAdmin, args=(peerNodeServer, clientUsername, broadcastUDPPort, broadcastIP,))
+                acceptPeersAdminThread.start()
+                
+                listenToPeersAsAdminThread = threading.Thread(target=listenToPeersAsAdmin, args=(broadcastUDP,))
+                listenToPeersAsAdminThread.start()
+                sendMessageChatroomAdmin(clientUsername, roomName, client)
+            elif responseCode == 2:
+                print(f"{RED}Room Name Already Exists")
+                print(Style.RESET_ALL)
+            elif responseCode == 0:
+                print(f"{RED}Error Occurred While Creating The Room")
+                print(Style.RESET_ALL)
+                
+                
+                
 
         elif option == "4":
             peerNodeAdmin = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             peerNodeAdmin.bind(('localhost', 0))
             peerPortNumberAdmin = peerNodeAdmin.getsockname()[1]
             
+            broadcastUDP = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            broadcastUDP.bind(('localhost', 0))
+            broadcastUDPPort = broadcastUDP.getsockname()[1]
+            
             peerNodeListen = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             peerNodeListen.bind(('localhost', 0))
-            peerPortNumberListen = peerNodeListen.getsockname()[1] # PORT number ready to listen to another peer
+            peerNodeListenPort = peerNodeListen.getsockname()[1]
             peerNodeListen.listen()
-            
-            peerNodeSend = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            peerNodeSend.bind(('localhost', 0))
-            peerPortNumberSend = peerNodeSend.getsockname()[1] # PORT number ready to send to another peer
-            
-            
-            
             peerAdminIP, peerAdminPort, roomName = sendJoinChatroomRequest()
-            if peerAdminIP != 0 and peerAdminPort != 0:
-                peerNodeAdmin.connect((peerAdminIP, peerAdminPort))
-                handleChatRoomPeer(peerNodeAdmin, roomName, peerPortNumberListen, peerNodeListen, peerNodeSend, client, clientUsername)
+            peerNodeAdmin.connect((peerAdminIP, peerAdminPort)) # Connect to the admin
+            
+            print(f"{BRIGHT}{WHITE}Request has been sent to admin to join the room...{Style.RESET_ALL}")
+            responseCode = connectToAdmin(peerNodeAdmin, broadcastUDPPort, peerNodeListenPort, clientUsername)
+            peerNodeAdmin.close()
+            if responseCode == 0:
+                print(f"{BRIGHT}{MAGENTA}You have joined the room!{Style.RESET_ALL}")
+                listenToAdminThread = threading.Thread(target=listenToAdmin, args=(peerNodeListen,))
+                listenToAdminThread.start()
+                listenToPeersThread = threading.Thread(target=listenToPeers, args=(broadcastUDP,))
+                listenToPeersThread.start()
+                sendMessageChatRoom(peerNodeListen, clientUsername)
+                
+            else:
+                print(f"{BRIGHT}{RED}Admin has declined the request! Try again later{Style.RESET_ALL}")
                 
         elif option == "5":
             print(f"{BRIGHT}Feature will be added later, stay tuned!")
