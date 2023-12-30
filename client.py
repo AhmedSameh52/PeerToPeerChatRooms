@@ -375,14 +375,22 @@ if __name__ == "__main__":
             
             print(f"{BRIGHT}{WHITE}Request has been sent to admin to join the room...{Style.RESET_ALL}")
             responseCode = connectToAdmin(peerNodeAdmin, broadcastUDPPort, peerNodeListenPort, clientUsername)
-            peerNodeAdmin.close()
             if responseCode == 0:
                 print(f"{BRIGHT}{MAGENTA}You have joined the room!{Style.RESET_ALL}")
-                listenToAdminThread = threading.Thread(target=listenToAdmin, args=(peerNodeListen,))
+                listenToAdminThread = threading.Thread(target=listenToAdmin, args=(peerNodeListen, peerNodeAdmin, broadcastUDP,))
                 listenToAdminThread.start()
-                listenToPeersThread = threading.Thread(target=listenToPeers, args=(broadcastUDP,))
+                listenToPeersThread = threading.Thread(target=listenToPeers, args=(broadcastUDP, peerNodeAdmin,))
                 listenToPeersThread.start()
-                sendMessageChatRoom(peerNodeListen, clientUsername)
+                sendMessageChatRoom(peerNodeAdmin, clientUsername, broadcastUDP, listenToAdminThread)
+                sockets_to_close = [peerNodeAdmin, broadcastUDP, peerNodeListen]
+
+                for sock in sockets_to_close:
+                    try:
+                        sock.close()
+                    except:
+                        pass
+                listenToPeersThread.join(timeout=1)
+                listenToAdminThread.join(timeout=1)
                 
             else:
                 print(f"{BRIGHT}{RED}Admin has declined the request! Try again later{Style.RESET_ALL}")

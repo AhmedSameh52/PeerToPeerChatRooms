@@ -66,7 +66,7 @@ def connectToAdmin(peerNodeAdmin, broadcastUDPPort, peerNodeListenPort, username
                     peersConnected.append(Peer(username = usernamesList[i], ip_address = IPList[i], port_number = portList[i]))
                 print(f"{BRIGHT}{GREEN}Request to join room accepted!{Style.RESET_ALL}")
                 return 0
-            elif message == "FAILED 500":
+            elif message[0] == "FAILED" and message[1] == "500":
                 print(f"{BRIGHT}{RED}Request to join room declined!{Style.RESET_ALL}")
                 return 1
         except Exception as e:
@@ -75,20 +75,21 @@ def connectToAdmin(peerNodeAdmin, broadcastUDPPort, peerNodeListenPort, username
             peerNodeAdmin.close()
             return 1
         
-def listenToAdmin(peerNodeListen):
+def listenToAdmin(peerNodeListen, peerNodeAdmin, broadcastUDP):
     
     while True:
         try:
+            if peerNodeAdmin._closed:
+                peerNodeListen.close()
+                return
             admin, address = peerNodeListen.accept()
-            thread = threading.Thread(target=processAdminRequest, args=(admin,))
+            thread = threading.Thread(target=processAdminRequest, args=(admin, peerNodeListen, peerNodeAdmin, broadcastUDP,))
             thread.start()
                     
-        except Exception as e:
-            print("dddd")
-            print(e)
-            pass
+        except:
+            return
         
-def processAdminRequest(admin):
+def processAdminRequest(admin, peerNodeListen, peerNodeAdmin, broadcastUDP):
     global peersConnected
     while True:
         try:
@@ -101,18 +102,30 @@ def processAdminRequest(admin):
                 peersConnected.append(Peer(username = username, ip_address = ip, port_number = port))
                 
             elif messageReceived[0] == "KICK":
-                print(f"{BRIGHT}{MAGENTA}You have been kicked from the room type anything to return to menu!{Style.RESET_ALL}")
-                peersConnected = []
+                print(f"{BRIGHT}{MAGENTA}You have been kicked from the room, type anything to return to menu!{Style.RESET_ALL}")
+                peerNodeAdmin.close()
+                admin.close()
+                peerNodeListen.close()
+                broadcastUDP.close()
                 return
-        except Exception as e:
-            print(e)
-            
-            
 
-def listenToPeers(broadcastUDP):
+            elif messageReceived[0] == "REMOVE_CONNECTION":
+                username = re.search(r'<(.*?)>', messageReceived[1]).group(1)
+                for i,peer in enumerate(peersConnected):
+                    if peer.username == username:
+                        del peersConnected[i]
+                        break
+                print(f"{BRIGHT}{MAGENTA}{username} have left!{Style.RESET_ALL}")
+        except:
+            return
+            
+def listenToPeers(broadcastUDP, peerNodeAdmin):
     global peersConnected
     while True:
         try:
+            if peerNodeAdmin._closed:
+               broadcastUDP.close()
+               return 
             data, _ = broadcastUDP.recvfrom(1024)
             decoded_data = data.decode(FORMAT).split(" ")
             
@@ -123,31 +136,45 @@ def listenToPeers(broadcastUDP):
             if len(peersConnected) == 0:
                 broadcastUDP.close()
                 return
-        except Exception as e:
-            print("momken")
-            print(e)
+        except:
+            if not peerNodeAdmin._closed:
+                peerNodeAdmin.close()
+            if not broadcastUDP._closed:
+                broadcastUDP.close()
+            return
             
-def sendMessageChatRoom(peerNodeListen, myUsername):
+            
+def sendMessageChatRoom(peerNodeAdmin, myUsername, broadcastUDP, listenToAdminThread):
     global peersConnected
     sockUDP = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sockUDP.bind(('localhost', 0))
     print(f"{BLUE}You can type {RED}!back{BLUE} to exit the chatroom!")
     while True:
-        try:
+        try:    
             message = '{}'.format(input(f"{Style.RESET_ALL}{YELLOW}{ITALIC}"))
             if message == "!back":
+                peerNodeAdmin.send(f"LEAVE <{myUsername}>".encode(FORMAT))
                 peersConnected = []
+                peerNodeAdmin.close()
                 sockUDP.close()
-                peerNodeListen.close()
+                broadcastUDP.close()
                 return
+            elif not listenToAdminThread.is_alive():
+                    peersConnected = []
+                    return
             else:
                 for i in range(len(peersConnected)):
                     sockUDP.sendto(f"SEND_MESSAGE <{myUsername}> <{message}>".encode(FORMAT), (peersConnected[i].ip_address, int(peersConnected[i].port_number)))
                 
-        except Exception as e: 
-            sockUDP.close()
-            print("?")
-            print(e)
+        except:
+            peersConnected = []
+            if not peerNodeAdmin._closed:
+                peerNodeAdmin.close()
+            if not sockUDP._closed:
+                sockUDP.close()
+            if not broadcastUDP._closed:
+                broadcastUDP.close()
+            return
 
 def acceptPeersAdmin(peerNodeServer, clientUsername, broadcastUDPPort, myIP):
     while True:
@@ -162,6 +189,7 @@ def acceptPeerRequest(peerNodeRespond, address, clientUsername, broadcastUDPPort
     global peersConnectedAdmin
     ip, port = address
     while True:
+        try:
             messageReceived = peerNodeRespond.recv(1024).decode(FORMAT).split(" ")
             if messageReceived[0] == "REQUEST_JOIN":
                 username = re.search(r'<(.*?)>', messageReceived[1]).group(1)
@@ -190,10 +218,46 @@ def acceptPeerRequest(peerNodeRespond, address, clientUsername, broadcastUDPPort
                     IPS_string = ','.join(IPS)
                     ports_string = ','.join(map(str, ports))
                     peersConnectedAdmin.append(PeerAdmin(username = username, ip_address = ip, udp_port_number = udpPort, peer_listen_port = listenPort))
-                    peerNodeRespond.send(f"ACCEPT 200 <{usernames_string}> <{IPS_string}> <{ports_string}>".encode(FORMAT)) 
+                    peerNodeRespond.send(f"ACCEPT 200 <{usernames_string}> <{IPS_string}> <{ports_string}>".encode(FORMAT))
+                    
                 else:
                     print(f"{MAGENTA}You rejected the join request!{Style.RESET_ALL}")
-                    peerNode.send(f"FAILED 500".encode(FORMAT))
+                    peerNodeRespond.send(f"FAILED 500".encode(FORMAT))
+                    
+            elif messageReceived[0] == "LEAVE":
+                clientUsername = re.search(r'<(.*?)>', messageReceived[1]).group(1)
+                index_to_remove = -1
+                for i,peer in enumerate(peersConnectedAdmin):
+                    if peer.username == clientUsername:
+                        index_to_remove = i
+                        continue
+                    peerNode = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    peerNode.bind(('localhost', 0))
+                    peerNode.connect((peer.ip_address, int(peer.peer_listen_port)))
+                    peerNode.send(f"REMOVE_CONNECTION <{clientUsername}>".encode(FORMAT))
+                    peerNode.close()
+                if index_to_remove != -1:
+                    del peersConnectedAdmin[i]
+                print(f"{BRIGHT}{MAGENTA}{clientUsername} have left!{Style.RESET_ALL}")
+                
+        except:
+            try:
+                index_to_remove = -1
+                for i,peer in enumerate(peersConnectedAdmin):
+                    try:
+                        peerNode = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        peerNode.bind(('localhost', 0))
+                        peerNode.connect((peer.ip_address, int(peer.peer_listen_port)))
+                        peerNode.send(f"REMOVE_CONNECTION <{clientUsername}>".encode(FORMAT))
+                        peerNode.close()
+                    except:
+                        index_to_remove = i
+                        break
+                if index_to_remove != -1:
+                    del peersConnectedAdmin[i]
+                return
+            except:
+                return
     
 def listenToPeersAsAdmin(broadcastUDP):
     while True:
@@ -204,9 +268,8 @@ def listenToPeersAsAdmin(broadcastUDP):
                 username = re.search(r'<(.*?)>', decoded_data[1]).group(1)
                 message = re.search(r'<(.*?)>', decoded_data[2]).group(1)
                 print(f"{BLUE}{username}: {WHITE}{message}{Style.RESET_ALL}")
-        except Exception as e:
-            print("maybeeee")
-            print(e)
+        except:
+            pass
             
 
 def sendMessageChatroomAdmin(myUsername, roomName, client):
@@ -219,15 +282,41 @@ def sendMessageChatroomAdmin(myUsername, roomName, client):
             message = '{}'.format(input(f"{Style.RESET_ALL}{YELLOW}{ITALIC}"))
             if message == "!back":
                 deleteChatRoomRequest(roomName, client)
+                for i in range(len(peersConnectedAdmin)):
+                    peerNode = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    peerNode.bind(('localhost', 0))
+                    peerNode.connect((peersConnectedAdmin[i].ip_address, int(peersConnectedAdmin[i].peer_listen_port)))
+                    peerNode.send(f"KICK".encode(FORMAT))
+                    peerNode.close()
                 return
             elif message == "!kick":
-                pass
+                username = '{}'.format(input(f"{Style.RESET_ALL}{YELLOW}{ITALIC}"))
+                usernameFound = False
+                index_to_remove = -1
+                for i in range(len(peersConnectedAdmin)):
+                    if peersConnectedAdmin[i].username == username:
+                        usernameFound = True
+                        peerNode = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        peerNode.bind(('localhost', 0))
+                        peerNode.connect((peersConnectedAdmin[i].ip_address, int(peersConnectedAdmin[i].peer_listen_port)))
+                        peerNode.send(f"KICK".encode(FORMAT))
+                        peerNode.close()
+                        index_to_remove = i
+                        print(f"{BRIGHT}{MAGENTA}{username} have been kicked!{Style.RESET_ALL}")
+                if usernameFound:
+                    del peersConnectedAdmin[index_to_remove]
+                    for i in range(len(peersConnectedAdmin)):
+                        peerNode = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        peerNode.bind(('localhost', 0))
+                        peerNode.connect((peersConnectedAdmin[i].ip_address, int(peersConnectedAdmin[i].peer_listen_port)))
+                        peerNode.send(f"REMOVE_CONNECTION <{username}>".encode(FORMAT))
+                        peerNode.close()
+                else:
+                    print(f"{BRIGHT}{MAGENTA}{username} not found in the room!{Style.RESET_ALL}")
             elif message == "!respond":
                 time.sleep(5)
             else:
                 for i in range(len(peersConnectedAdmin)):
                     sockUDP.sendto(f"SEND_MESSAGE <{myUsername}> <{message}>".encode(FORMAT), (peersConnectedAdmin[i].ip_address, int(peersConnectedAdmin[i].udp_port_number)))
-        except Exception as e:
-            print("hena yaba")
-            print(e)
+        except:
             pass
