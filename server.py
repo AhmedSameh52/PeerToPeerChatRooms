@@ -4,6 +4,7 @@ import sqlite3
 import re
 from user import User
 from chatRoom import ChatRoom
+from peer import Peer
 import time
 
 HOST = socket.gethostbyname(socket.gethostname())
@@ -13,12 +14,12 @@ FORMAT = 'utf-8' # Message Encoding Format
 
 peersConnected = []
 chatroomsOnline = []
+peersInSearch = []
 
 def decreaseHelloTimers():
     global peersConnected
     try:
         while True:
-
             for i, peer in enumerate(peersConnected):
                 peersConnected[i].helloTimerRemaining -= 1
                 # print(f"Decreased remaining time of {peersConnected[i].username} and bacame {peersConnected[i].helloTimerRemaining}")
@@ -28,8 +29,6 @@ def decreaseHelloTimers():
             time.sleep(3)
     except Exception as e:
         print(e)
-
-
 
 def UDPHello(client_socket):
     global peersConnected
@@ -216,6 +215,38 @@ def joinChatroomCommand(messageReceived):
     except:
         return 1, 0, 0
 
+def processInviteRequests(messageReceived):
+    # ACCEPT 200 -> 0 /// NOT_FOUND 401 -> 1 /// FAILED 500 -> 2
+    global peersInSearch
+    try:
+        username = re.search(r'<(.*?)>', messageReceived[1]).group(1)
+        ip = re.search(r'<(.*?)>', messageReceived[1]).group(1)
+        port = re.search(r'<(.*?)>', messageReceived[1]).group(1)
+
+        index = next((index for index, Peer in enumerate(peersInSearch) if Peer.username == username), None)
+        
+        if index is None:
+            # User not found
+            return 1, "NA", -1
+        else:
+            ipPeer = peersInSearch[index].ip_address
+            portPeer = peersInSearch[index].port_number
+            del peersInSearch[index]
+            return 0, ipPeer, portPeer
+    except:
+        return 2, "NA", -1
+    
+def processSearchReadyRequests(messageReceived):
+    # ACCEPT 200 -> 0 /// FAILED 500 -> 1
+    global peersInSearch
+    try:
+        username = re.search(r'<(.*?)>', messageReceived[1]).group(1)
+        ip = re.search(r'<(.*?)>', messageReceived[2]).group(1)
+        port = re.search(r'<(.*?)>', messageReceived[3]).group(1)
+        peersInSearch.append(Peer(username = username, ip_address = ip, port_number = port))
+        return 0
+    except:
+        return 1
 
 def receive(client, address):
     # Accept Connection
@@ -240,8 +271,7 @@ def receive(client, address):
                     elif responseCode == 2:
                         client.send('NOT_FOUND 401'.encode(FORMAT))
                     elif responseCode == 3:
-                        client.send('INCORRECT_PASSWORD 402'.encode(FORMAT))
-                    
+                        client.send('INCORRECT_PASSWORD 402'.encode(FORMAT))      
                 case "CREATE":
                     responseCode = signupCommand(messageReceived, address)
                     if responseCode == 0:
@@ -253,7 +283,6 @@ def receive(client, address):
                         client.send('USERNAME_TAKEN 400'.encode(FORMAT))
                     elif responseCode == 2:
                         client.send('FAILED 500'.encode(FORMAT))
-
                 case "LOGOUT":  
                     responseCode = logoutCommand(userObject)      
                     if responseCode == 0:
@@ -261,7 +290,6 @@ def receive(client, address):
                         client.send('ACCEPT 200'.encode(FORMAT))
                     elif responseCode == 1:
                         client.send('FAILED 500'.encode(FORMAT))
-
                 case "LIST_ONLINE_USERS":
                     listOnlineUsersCommand(client)
                 case "LIST_ONLINE_CHATROOMS":
@@ -286,16 +314,20 @@ def receive(client, address):
                         client.send(f"ACCEPT 200 <{ipAdmin}> <{portAdmin}>".encode(FORMAT))
                     elif responseCode == 1:
                         client.send('FAILED 500'.encode(FORMAT))
-                case "LEAVE_ROOM":
-                    print("leave room command needs to be executed!")
-                case "KICK":
-                    print("kick command needs to be executed!")
                 case "INVITE":
-                    print("invite command needs to be executed!")
-                case "LEAVE_CHAT":
-                    print("leave chat command needs to be executed!")
-                case "HELLO":
-                    print("hello command needs to be executed!")
+                    responseCode, peerIP, peerPort = processInviteRequests(messageReceived)
+                    if responseCode == 0:
+                        client.send(f'ACCEPT 200 <{peerIP}> <{peerPort}>'.encode(FORMAT))
+                    elif responseCode == 1:
+                        client.send('NOT_FOUND 401'.encode(FORMAT))
+                    elif responseCode == 2:
+                        client.send('FAILED 500'.encode(FORMAT))
+                case "SEARCH_READY":
+                    responseCode = processSearchReadyRequests(messageReceived)
+                    if responseCode == 0:
+                        client.send(f"ACCEPT 200".encode(FORMAT))
+                    elif responseCode == 1:
+                        client.send(f"FAILED 500".encode(FORMAT))
                 case "RESET_PASSWORD":
                     responseCode = resetPasswordCommand(messageReceived, address, userObject)      
                     if responseCode == 0:
@@ -303,7 +335,6 @@ def receive(client, address):
                         client.send('ACCEPT 200'.encode(FORMAT))
                     elif responseCode == 1:
                         client.send('FAILED 500'.encode(FORMAT))
-
                 case _:
                     print(messageReceived)
 

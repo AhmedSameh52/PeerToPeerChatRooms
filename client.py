@@ -5,7 +5,7 @@ import time
 import re
 # import getpass
 from formats import MAGENTA,WHITE,Style,BLUE,RED,ITALIC,YELLOW,BRIGHT,GREEN,CYAN,MAGENTA_BG
-from peer import acceptPeersAdmin, connectToAdmin, listenToAdmin, sendMessageChatroomAdmin, sendMessageChatRoom, listenToPeersAsAdmin, listenToPeers
+from peer import acceptPeersAdmin, connectToAdmin, listenToAdmin, sendMessageChatroomAdmin, sendMessageChatRoom, listenToPeersAsAdmin, listenToPeers, listenRequestsPrivateChat, sendPrivateInviteUser, receivePrivateChat, enterChat, sendSearchReadyRequst, enterChatWhileWaitingForPeer, listenRequestsPrivateChatThreadHandle
 
 
 
@@ -291,6 +291,39 @@ def sendCreateChatroomRequest(newPortNumber):
             break
     return 0, roomName
 
+def sendPrivateInviteRequst(ip, portNumber):
+    # 0 -> server responded successfully, 1 -> user not found, 2-> server responded failed
+    username = '{}'.format(input(f"{MAGENTA}Username: {YELLOW}{ITALIC}"))
+    print(Style.RESET_ALL)
+    print(f"{BRIGHT}Processing....")
+    print(Style.RESET_ALL)
+
+    message = f"INVITE <{username}> <{ip}> <{portNumber}>"
+    client.send(message.encode(FORMAT))
+    while True:
+        try:
+            message = client.recv(1024).decode(FORMAT).split(" ")
+            if message[0] == "ACCEPT" and message[1] == "200":
+                peerIP = re.search(r'<(.*?)>', message[2]).group(1)
+                peerPort = re.search(r'<(.*?)>', message[3]).group(1)
+                print(f"{BRIGHT}Connecting to {username}....")
+                print(Style.RESET_ALL)
+                return 0, peerIP, peerPort, username
+            elif message[0] == "NOT_FOUND" and message[1] == "401":
+                print(f"{BRIGHT}{RED}{username} not found online or the user is not accepting invitations right now!")
+                print(Style.RESET_ALL)
+                return 1, "NA", -1, username
+            elif message[0] == "FAILED" and message[1] == "500":
+                print(f"{BRIGHT}{RED}An error has occured while inviting the user, please try again.")
+                print(Style.RESET_ALL)
+                return 2, "NA", -1, username
+        except Exception as e:
+            print(e)   
+            print(f"{BRIGHT}{RED}An error occured with the connection!")
+            print(Style.RESET_ALL)
+            client.close()
+            break
+    return 2, "NA", -1, username
 
 if __name__ == "__main__":
     # Start UDP Socket Thread
@@ -354,9 +387,6 @@ if __name__ == "__main__":
                 print(f"{RED}Error Occurred While Creating The Room")
                 print(Style.RESET_ALL)
                 
-                
-                
-
         elif option == "4":
             peerNodeAdmin = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             peerNodeAdmin.bind(('localhost', 0))
@@ -396,8 +426,50 @@ if __name__ == "__main__":
                 print(f"{BRIGHT}{RED}Admin has declined the request! Try again later{Style.RESET_ALL}")
                 
         elif option == "5":
-            print(f"{BRIGHT}Feature will be added later, stay tuned!")
-            print(Style.RESET_ALL)
+            print(f"{YELLOW}1- {BLUE}Accept Invitations (Wait for Users Invites)\n{YELLOW}2- {BLUE}Send Invitation\n")
+            option = '{}'.format(input(f"{MAGENTA}Enter a number: {YELLOW}{ITALIC}{Style.RESET_ALL}"))
+            if option == '1':
+                peerNodePrivate = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                peerNodePrivate.bind(('localhost', 0))
+                peerIPPrivate = peerNodePrivate.getsockname()[0]
+                peerPortNumberPrivate = peerNodePrivate.getsockname()[1]
+                responseCode = sendSearchReadyRequst(peerIPPrivate, peerPortNumberPrivate, clientUsername, client)
+                
+                if responseCode == 0:
+                    peerNodePrivate.listen()
+                    listenToPeerThread = threading.Thread(target=listenRequestsPrivateChatThreadHandle, args=(peerNodePrivate, peerIPPrivate, peerPortNumberPrivate, clientUsername, client,))
+                    listenToPeerThread.start()
+                    enterChatWhileWaitingForPeer()
+                    listenToPeerThread.join(timeout=1)
+                else:
+                    print(f"{BRIGHT}{RED}Error with the server! Try again later{Style.RESET_ALL}")
+                    
+            elif option == '2':
+                peerNodePrivate = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                peerNodePrivate.bind(('localhost', 0))
+                peerIPPrivate = peerNodePrivate.getsockname()[0]
+                peerPortNumberPrivate = peerNodePrivate.getsockname()[1]
+                responseCode, peerIP, peerPort, peerUsername = sendPrivateInviteRequst(peerIPPrivate, peerPortNumberPrivate)
+                if responseCode == 0:
+                    try:
+                        peerNodePrivate.connect((peerIP, int(peerPort)))
+                        responseCode2 = sendPrivateInviteUser(peerNodePrivate, clientUsername)
+                        if responseCode2 == 0:
+                            print(f"{GREEN}User accepted the invitation{Style.RESET_ALL}")
+                            listenToPeerThread = threading.Thread(target=receivePrivateChat, args=(peerNodePrivate, peerUsername,))
+                            listenToPeerThread.start()
+                            enterChat(peerNodePrivate, peerUsername)
+                            listenToPeerThread.join(timeout=1)
+                        elif responseCode2 == 1 or responseCode2 == 2:
+                            peerNodePrivate.close()
+                            print(f"{RED}User declined the invitation, you will be redirected to the main menu")
+                            print(Style.RESET_ALL)    
+                    except:
+                        print(f"{RED}Connection failed, you will be redirected to the main menu")
+                        print(Style.RESET_ALL)        
+            else:
+                print(f"{RED}Invalid number, you will be redirected to the main menu")
+                print(Style.RESET_ALL)
         elif option == "6":
             sendResetPasswordRequst()
         elif option == "7":

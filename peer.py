@@ -8,6 +8,7 @@ peersConnected = []
 peersConnectedAdmin = []
 lastFreePortNumber = None
 lastFreeIP = None
+peerPrivate = None
 
 class Peer:
     def __init__(self, username, ip_address, port_number):
@@ -320,3 +321,125 @@ def sendMessageChatroomAdmin(myUsername, roomName, client):
                     sockUDP.sendto(f"SEND_MESSAGE <{myUsername}> <{message}>".encode(FORMAT), (peersConnectedAdmin[i].ip_address, int(peersConnectedAdmin[i].udp_port_number)))
         except:
             pass
+        
+def sendPrivateInviteUser(peerNodePrivate, clientUsername):
+    # 0 -> User accepted invitation, 1 -> User declined invitation, 2-> Connection failed
+    message = f"INVITE <{clientUsername}>"
+    peerNodePrivate.send(message.encode(FORMAT))
+    while True:
+        try:
+            message = peerNodePrivate.recv(1024).decode(FORMAT).split(" ")
+            if message[0] == "ACCEPT" and message[1] == "200":
+                return 0
+            elif message[0] == "DECLINED" and message[1] == "404":
+                return 1
+            elif message[0] == "FAILED" and message[1] == "500":
+                return 2
+        except:
+            peerNodePrivate.close()
+            return 2
+        
+def enterChat(peerNodePrivate, otherPeerUsername):
+    print(f"{CYAN}You are now chatting with {YELLOW}{otherPeerUsername}{CYAN} type {YELLOW}!back{CYAN} to exit the chat:{Style.RESET_ALL}")
+    while True:
+        try:
+            message = '{}'.format(input(f"{Style.RESET_ALL}{YELLOW}{ITALIC}"))
+            if message == "!back":
+                peerNodePrivate.close()
+                return
+            else:
+                message = f"SEND_MESSAGE <{message}>"
+                peerNodePrivate.send(message.encode(FORMAT))
+        except:
+            print(f"{RED}{BRIGHT}Connection lost with {otherPeerUsername}, you will be redirected to the main menu once you type anything")
+            return
+
+def receivePrivateChat(peerNodePrivate, otherPeerUsername):
+    while True:
+        try:
+            message = peerNodePrivate.recv(1024).decode(FORMAT).split(" ")
+            if message[0] == "SEND_MESSAGE":
+                messaageFromPeer = re.search(r'<(.*?)>', message[1]).group(1)
+                print(f"{BLUE}{otherPeerUsername}: {WHITE}{messaageFromPeer}{Style.RESET_ALL}")
+        except:
+            print(f"{RED}{BRIGHT}Connection lost with {otherPeerUsername}, you will be redirected to the main menu once you type anything{Style.RESET_ALL}")
+            return
+
+def listenRequestsPrivateChatThreadHandle(peerNodePrivate, peerIPPrivate, peerPortNumberPrivate, clientUsername, client):
+    global peerPrivate
+    while True:
+        try:
+            peer, address = peerNodePrivate.accept()
+            peerPrivate = peer
+            thread = threading.Thread(target=listenRequestsPrivateChat, args=(peer, peerIPPrivate, peerPortNumberPrivate, clientUsername, client,))
+            thread.start()
+            break
+        except:
+            pass
+        
+def listenRequestsPrivateChat(peerNodePrivate, peerIPPrivate, peerPortNumberPrivate, clientUsername, client):
+    peerUsername = None
+    while True:
+        try:
+            message = peerNodePrivate.recv(1024).decode(FORMAT).split(" ")
+            if message[0] == "INVITE":
+                peerUsername = re.search(r'<(.*?)>', message[1]).group(1)
+                print(f"{YELLOW}{peerUsername} {BLUE}wants to chat with you! type {RED}!respond {BLUE}to respond and then type {YELLOW}Yes {BLUE}or {YELLOW}No{Style.RESET_ALL}")
+                response = '{}'.format(input(f"{MAGENTA}Decision: {YELLOW}{ITALIC}"))
+                if response == "Yes" or response == "yes" or response == "y" or response == "Y":
+                    peerNodePrivate.send("ACCEPT 200".encode(FORMAT))
+                    listenToPeerThread = threading.Thread(target=receivePrivateChat, args=(peerNodePrivate, peerUsername,))
+                    listenToPeerThread.start()
+                    print(f"{CYAN}You are now chatting with {YELLOW}{peerUsername}{CYAN} type {YELLOW}!back{CYAN} to exit the chat:{Style.RESET_ALL}")
+                    return
+                else:
+                    peerNodePrivate.send("DECLINED 404".encode(FORMAT))
+                    print(f"{RED}You have declined the request!Type anything to return to the menu!{Style.RESET_ALL}")
+                    sendSearchReadyRequst(peerIPPrivate, peerPortNumberPrivate, clientUsername, client)
+                    return
+                    
+            elif message[0] == "SEND_MESSAGE":
+                messaageFromPeer = re.search(r'<(.*?)>', message[1]).group(1)
+                print(f"{BLUE}{peerUsername}: {WHITE}{messaageFromPeer}{Style.RESET_ALL}")
+        except:
+            pass
+        
+def sendSearchReadyRequst(ip, portNumber, clientUsername, client):
+    # 0 -> server responded successfully, 1-> server responded failed    
+    message = f"SEARCH_READY <{clientUsername}> <{ip}> <{portNumber}>"
+    client.send(message.encode(FORMAT))
+    while True:
+        try:
+            message = client.recv(1024).decode(FORMAT).split(" ")
+            if message[0] == "ACCEPT" and message[1] == "200":
+                print(f"{BRIGHT}{WHITE}Waiting for invitations, you can type anything to return to menu....")
+                print(Style.RESET_ALL)
+                return 0
+            elif message[0] == "FAILED" and message[1] == "500":
+                print(f"{BRIGHT}{RED}An error has occured while contacting the server, please try again.")
+                print(Style.RESET_ALL)
+                return 1
+        except Exception as e:
+            print(e)   
+            print(f"{BRIGHT}{RED}An error occured with the connection!")
+            print(Style.RESET_ALL)
+            client.close()
+            break
+    return 1
+
+def enterChatWhileWaitingForPeer():
+    global peerPrivate
+    while True:
+        try:
+            message = '{}'.format(input(f"{Style.RESET_ALL}{YELLOW}{ITALIC}"))
+            if message == "!back":
+                peerPrivate.close()
+                return
+            elif message == "!respond":
+                time.sleep(5)
+            else:
+                message = f"SEND_MESSAGE <{message}>"
+                peerPrivate.send(message.encode(FORMAT))
+        except:
+            print(f"{RED}{BRIGHT}Connection lost, you will be redirected to the main menu{Style.RESET_ALL}")
+            return
