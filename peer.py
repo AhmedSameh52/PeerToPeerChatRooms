@@ -302,7 +302,7 @@ def sendMessageChatroomAdmin(myUsername, roomName, client):
     global peersConnectedAdmin
     sockUDP = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sockUDP.bind(('localhost', 0))
-    print(f"{MAGENTA}Commands:\n{YELLOW}!back {CYAN}To exit the chatroom and delete it.\n{YELLOW}!kick username {CYAN}To kick someone from the room\n{YELLOW}!respond {CYAN}To accept or decline the join request{Style.RESET_ALL}")
+    print(f"{MAGENTA}Commands:\n{YELLOW}!back {CYAN}To exit the chatroom and delete it.\n{YELLOW}!kick username {CYAN}To kick someone from the room\n{YELLOW}!respond {CYAN}To accept or decline the join request\n{YELLOW}*BOLD* {CYAN}Wrap the message with * to make it bold\n{YELLOW}_ITALIC_ {CYAN}Wrap the message with _ to make it italic\n{Style.RESET_ALL}")
     while True:
         try:
             message = '{}'.format(input(f"{Style.RESET_ALL}{YELLOW}{ITALIC}"))
@@ -427,7 +427,7 @@ def listenRequestsPrivateChat(peerNodePrivate, peerIPPrivate, peerPortNumberPriv
                     peerNodePrivate.send("ACCEPT 200".encode(FORMAT))
                     listenToPeerThread = threading.Thread(target=receivePrivateChat, args=(peerNodePrivate, peerUsername,))
                     listenToPeerThread.start()
-                    print(f"{CYAN}You are now chatting with {YELLOW}{peerUsername}{CYAN} type {YELLOW}!back{CYAN} to exit the chat:{Style.RESET_ALL}")
+                    print(f"{CYAN}You are now chatting with {YELLOW}{peerUsername}{CYAN} type {YELLOW}!back{CYAN} to exit the chat\n{YELLOW}*BOLD* {CYAN}Wrap the message with * to make it bold\n{YELLOW}_ITALIC_ {CYAN}Wrap the message with _ to make it italic\n{Style.RESET_ALL}")
                     return
                 else:
                     peerNodePrivate.send("DECLINED 404".encode(FORMAT))
