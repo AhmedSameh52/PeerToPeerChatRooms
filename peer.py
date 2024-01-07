@@ -2,13 +2,14 @@ import re
 import threading
 import socket
 import time
-from formats import MAGENTA, WHITE, Style, BLUE, RED, ITALIC, YELLOW, BRIGHT, GREEN, CYAN
+from formats import MAGENTA, WHITE, Style, BLUE, RED, ITALIC, YELLOW, BRIGHT, GREEN, CYAN, BLUE_BG
 FORMAT = 'utf-8' # Message Encoding Format
 peersConnected = []
 peersConnectedAdmin = []
 lastFreePortNumber = None
 lastFreeIP = None
 peerPrivate = None
+url_pattern = re.compile(r'https?://\S+|www\.\S+')
 
 class Peer:
     def __init__(self, username, ip_address, port_number):
@@ -133,7 +134,19 @@ def listenToPeers(broadcastUDP, peerNodeAdmin):
             if decoded_data[0] == "SEND_MESSAGE":
                 username = re.search(r'<(.*?)>', decoded_data[1]).group(1)
                 message = re.search(r'<(.*?)>', decoded_data[2]).group(1)
-                print(f"{BLUE}{username}: {WHITE}{message}{Style.RESET_ALL}")
+                matchBold = re.search(r'\*(.*?)\*', message)
+                matchItalic = re.search(r'_(.*?)_', message)
+                matchURL = re.search(url_pattern, message)
+                if matchURL:
+                    print(f"{BLUE}{username}: {BLUE_BG}{WHITE}{message}{Style.RESET_ALL}")
+                elif matchBold:
+                    message = re.search(r'\*(.*?)\*', message).group(1)
+                    print(f"{BLUE}{username}: {BRIGHT}{WHITE}{message}{Style.RESET_ALL}")
+                elif matchItalic:
+                    message = re.search(r'_(.*?)_', message).group(1)
+                    print(f"{BLUE}{username}: {ITALIC}{WHITE}{message}{Style.RESET_ALL}")
+                else:
+                    print(f"{BLUE}{username}: {WHITE}{message}{Style.RESET_ALL}")
             if len(peersConnected) == 0:
                 broadcastUDP.close()
                 return
@@ -268,7 +281,19 @@ def listenToPeersAsAdmin(broadcastUDP):
             if decoded_data[0] == "SEND_MESSAGE":
                 username = re.search(r'<(.*?)>', decoded_data[1]).group(1)
                 message = re.search(r'<(.*?)>', decoded_data[2]).group(1)
-                print(f"{BLUE}{username}: {WHITE}{message}{Style.RESET_ALL}")
+                matchBold = re.search(r'\*(.*?)\*', message)
+                matchItalic = re.search(r'_(.*?)_', message)
+                matchURL = re.search(url_pattern, message)
+                if matchURL:
+                    print(f"{BLUE}{username}: {BLUE_BG}{WHITE}{message}{Style.RESET_ALL}")
+                elif matchBold:
+                    message = re.search(r'\*(.*?)\*', message).group(1)
+                    print(f"{BLUE}{username}: {BRIGHT}{WHITE}{message}{Style.RESET_ALL}")
+                elif matchItalic:
+                    message = re.search(r'_(.*?)_', message).group(1)
+                    print(f"{BLUE}{username}: {ITALIC}{WHITE}{message}{Style.RESET_ALL}")
+                else:
+                    print(f"{BLUE}{username}: {WHITE}{message}{Style.RESET_ALL}")
         except:
             pass
             
@@ -360,7 +385,19 @@ def receivePrivateChat(peerNodePrivate, otherPeerUsername):
             message = peerNodePrivate.recv(1024).decode(FORMAT).split(" ")
             if message[0] == "SEND_MESSAGE":
                 messaageFromPeer = re.search(r'<(.*?)>', message[1]).group(1)
-                print(f"{BLUE}{otherPeerUsername}: {WHITE}{messaageFromPeer}{Style.RESET_ALL}")
+                matchBold = re.search(r'\*(.*?)\*', messaageFromPeer)
+                matchItalic = re.search(r'_(.*?)_', messaageFromPeer)
+                matchURL = re.search(url_pattern, messaageFromPeer)
+                if matchURL:
+                    print(f"{BLUE}{otherPeerUsername}: {BLUE_BG}{WHITE}{messaageFromPeer}{Style.RESET_ALL}")
+                elif matchBold:
+                    messaageFromPeer = re.search(r'\*(.*?)\*', messaageFromPeer).group(1)
+                    print(f"{BLUE}{otherPeerUsername}: {BRIGHT}{WHITE}{messaageFromPeer}{Style.RESET_ALL}")
+                elif matchItalic:
+                    messaageFromPeer = re.search(r'_(.*?)_', messaageFromPeer).group(1)
+                    print(f"{BLUE}{otherPeerUsername}: {ITALIC}{WHITE}{messaageFromPeer}{Style.RESET_ALL}")
+                else:
+                    print(f"{BLUE}{otherPeerUsername}: {WHITE}{messaageFromPeer}{Style.RESET_ALL}")
         except:
             print(f"{RED}{BRIGHT}Connection lost with {otherPeerUsername}, you will be redirected to the main menu once you type anything{Style.RESET_ALL}")
             return
@@ -400,7 +437,19 @@ def listenRequestsPrivateChat(peerNodePrivate, peerIPPrivate, peerPortNumberPriv
                     
             elif message[0] == "SEND_MESSAGE":
                 messaageFromPeer = re.search(r'<(.*?)>', message[1]).group(1)
-                print(f"{BLUE}{peerUsername}: {WHITE}{messaageFromPeer}{Style.RESET_ALL}")
+                matchBold = re.search(r'\*(.*?)\*', messaageFromPeer)
+                matchItalic = re.search(r'_(.*?)_', messaageFromPeer)
+                matchURL = re.search(url_pattern, messaageFromPeer)
+                if matchURL:
+                    print(f"{BLUE}{peerUsername}: {BLUE_BG}{WHITE}{messaageFromPeer}{Style.RESET_ALL}")
+                elif matchBold:
+                    messaageFromPeer = re.search(r'\*(.*?)\*', messaageFromPeer).group(1)
+                    print(f"{BLUE}{peerUsername}: {BRIGHT}{WHITE}{messaageFromPeer}{Style.RESET_ALL}")
+                elif matchItalic:
+                    messaageFromPeer = re.search(r'_(.*?)_', messaageFromPeer).group(1)
+                    print(f"{BLUE}{peerUsername}: {ITALIC}{WHITE}{messaageFromPeer}{Style.RESET_ALL}")
+                else:
+                    print(f"{BLUE}{peerUsername}: {WHITE}{messaageFromPeer}{Style.RESET_ALL}")
         except:
             pass
         

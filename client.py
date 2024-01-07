@@ -200,9 +200,7 @@ def sendListOnlineChatroomsRequest():
             print(Style.RESET_ALL)
             client.close()
             break
-
-
-        
+     
 def sendJoinChatroomRequest():
     # 1 -> room joining successfully, 0 -> room joining failed 
     roomName = '{}'.format(input(f"{MAGENTA}Room Name: {YELLOW}{ITALIC}"))
