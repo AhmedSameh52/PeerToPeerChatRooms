@@ -162,7 +162,7 @@ def sendMessageChatRoom(peerNodeAdmin, myUsername, broadcastUDP, listenToAdminTh
     global peersConnected
     sockUDP = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sockUDP.bind(('localhost', 0))
-    print(f"{BLUE}You can type {RED}!back{BLUE} to exit the chatroom!")
+    print(f"{BLUE}You can type {RED}!back{BLUE} to exit the chatroom\n{YELLOW}*BOLD* {CYAN}Wrap the message with * to make it bold\n{YELLOW}_ITALIC_ {CYAN}Wrap the message with _ to make it italic\n{Style.RESET_ALL}")
     while True:
         try:    
             message = '{}'.format(input(f"{Style.RESET_ALL}{YELLOW}{ITALIC}"))
@@ -365,7 +365,7 @@ def sendPrivateInviteUser(peerNodePrivate, clientUsername):
             return 2
         
 def enterChat(peerNodePrivate, otherPeerUsername):
-    print(f"{CYAN}You are now chatting with {YELLOW}{otherPeerUsername}{CYAN} type {YELLOW}!back{CYAN} to exit the chat:{Style.RESET_ALL}")
+    print(f"{CYAN}You are now chatting with {YELLOW}{otherPeerUsername}{CYAN} type {YELLOW}!back{CYAN} to exit the chat\n{YELLOW}*BOLD* {CYAN}Wrap the message with * to make it bold\n{YELLOW}_ITALIC_ {CYAN}Wrap the message with _ to make it italic\n{Style.RESET_ALL}")
     while True:
         try:
             message = '{}'.format(input(f"{Style.RESET_ALL}{YELLOW}{ITALIC}"))
