@@ -162,7 +162,7 @@ def sendMessageChatRoom(peerNodeAdmin, myUsername, broadcastUDP, listenToAdminTh
     global peersConnected
     sockUDP = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sockUDP.bind(('localhost', 0))
-    print(f"{BLUE}You can type {RED}!back{BLUE} to exit the chatroom\n{YELLOW}*BOLD* {CYAN}Wrap the message with * to make it bold\n{YELLOW}_ITALIC_ {CYAN}Wrap the message with _ to make it italic\n{Style.RESET_ALL}")
+    print(f"{BLUE}You can type {RED}!back{BLUE} to exit the chatroom\nYou can type {RED}!people {BLUE}To see the users in the room\n{YELLOW}*BOLD* {CYAN}Wrap the message with * to make it bold\n{YELLOW}_ITALIC_ {CYAN}Wrap the message with _ to make it italic\n{Style.RESET_ALL}")
     while True:
         try:    
             message = '{}'.format(input(f"{Style.RESET_ALL}{YELLOW}{ITALIC}"))
@@ -173,6 +173,10 @@ def sendMessageChatRoom(peerNodeAdmin, myUsername, broadcastUDP, listenToAdminTh
                 sockUDP.close()
                 broadcastUDP.close()
                 return
+            elif message == "!people":
+                print(f"{MAGENTA}Users in the room:{Style.RESET_ALL}")
+                for i,peer in enumerate(peersConnected):
+                    print(f"{BLUE}{i}- {peer.username}")
             elif not listenToAdminThread.is_alive():
                     peersConnected = []
                     return
@@ -302,7 +306,7 @@ def sendMessageChatroomAdmin(myUsername, roomName, client):
     global peersConnectedAdmin
     sockUDP = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sockUDP.bind(('localhost', 0))
-    print(f"{MAGENTA}Commands:\n{YELLOW}!back {CYAN}To exit the chatroom and delete it.\n{YELLOW}!kick username {CYAN}To kick someone from the room\n{YELLOW}!respond {CYAN}To accept or decline the join request\n{YELLOW}*BOLD* {CYAN}Wrap the message with * to make it bold\n{YELLOW}_ITALIC_ {CYAN}Wrap the message with _ to make it italic\n{Style.RESET_ALL}")
+    print(f"{MAGENTA}Commands:\n{YELLOW}!back {CYAN}To exit the chatroom and delete it.\n{YELLOW}!kick username {CYAN}To kick someone from the room\n{YELLOW}!people {CYAN}To see the users in the room\n{YELLOW}!respond {CYAN}To accept or decline the join request\n{YELLOW}*BOLD* {CYAN}Wrap the message with * to make it bold\n{YELLOW}_ITALIC_ {CYAN}Wrap the message with _ to make it italic\n{Style.RESET_ALL}")
     while True:
         try:
             message = '{}'.format(input(f"{Style.RESET_ALL}{YELLOW}{ITALIC}"))
@@ -315,6 +319,10 @@ def sendMessageChatroomAdmin(myUsername, roomName, client):
                     peerNode.send(f"KICK".encode(FORMAT))
                     peerNode.close()
                 return
+            elif message == "!people":
+                print(f"{MAGENTA}Users in the room:{Style.RESET_ALL}")
+                for i,peer in enumerate(peersConnectedAdmin):
+                    print(f"{BLUE}{i}- {peer.username}")
             elif message == "!kick":
                 username = '{}'.format(input(f"{Style.RESET_ALL}{YELLOW}{ITALIC}"))
                 usernameFound = False
