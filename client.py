@@ -202,7 +202,7 @@ def sendListOnlineChatroomsRequest():
             break
      
 def sendJoinChatroomRequest():
-    # 1 -> room joining successfully, 0 -> room joining failed 
+    # 0 -> room joining failed 
     roomName = '{}'.format(input(f"{MAGENTA}Room Name: {YELLOW}{ITALIC}"))
     print(Style.RESET_ALL)
     print(f"{BRIGHT}Processing....")
@@ -217,7 +217,11 @@ def sendJoinChatroomRequest():
                 adminIP = re.search(r'<(.*?)>', message[2]).group(1)
                 adminPortNumber = int(re.search(r'<(.*?)>', message[3]).group(1))
                 return adminIP, adminPortNumber, roomName
-            elif message == "FAILED 500":
+            elif "NOT_FOUND" in message and "401" in message:
+                print(f"{BRIGHT}{RED}No room available with that name, please try again.")
+                print(Style.RESET_ALL)
+                return 0, 0, roomName
+            elif "FAILED" in message and "500" in message:
                 print(f"{BRIGHT}{RED}An error has occured while executing the command, please try again.")
                 print(Style.RESET_ALL)
                 return 0, 0, roomName
@@ -289,14 +293,14 @@ def sendCreateChatroomRequest(newPortNumber):
             break
     return 0, roomName
 
-def sendPrivateInviteRequst(ip, portNumber):
+def sendPrivateInviteRequst():
     # 0 -> server responded successfully, 1 -> user not found, 2-> server responded failed
     username = '{}'.format(input(f"{MAGENTA}Username: {YELLOW}{ITALIC}"))
     print(Style.RESET_ALL)
     print(f"{BRIGHT}Processing....")
     print(Style.RESET_ALL)
 
-    message = f"INVITE <{username}> <{ip}> <{portNumber}>"
+    message = f"INVITE <{username}>"
     client.send(message.encode(FORMAT))
     while True:
         try:
@@ -399,29 +403,30 @@ if __name__ == "__main__":
             peerNodeListenPort = peerNodeListen.getsockname()[1]
             peerNodeListen.listen()
             peerAdminIP, peerAdminPort, roomName = sendJoinChatroomRequest()
-            peerNodeAdmin.connect((peerAdminIP, peerAdminPort)) # Connect to the admin
-            
-            print(f"{BRIGHT}{WHITE}Request has been sent to admin to join the room...{Style.RESET_ALL}")
-            responseCode = connectToAdmin(peerNodeAdmin, broadcastUDPPort, peerNodeListenPort, clientUsername)
-            if responseCode == 0:
-                print(f"{BRIGHT}{MAGENTA}You have joined the room!{Style.RESET_ALL}")
-                listenToAdminThread = threading.Thread(target=listenToAdmin, args=(peerNodeListen, peerNodeAdmin, broadcastUDP,))
-                listenToAdminThread.start()
-                listenToPeersThread = threading.Thread(target=listenToPeers, args=(broadcastUDP, peerNodeAdmin,))
-                listenToPeersThread.start()
-                sendMessageChatRoom(peerNodeAdmin, clientUsername, broadcastUDP, listenToAdminThread)
-                sockets_to_close = [peerNodeAdmin, broadcastUDP, peerNodeListen]
-
-                for sock in sockets_to_close:
-                    try:
-                        sock.close()
-                    except:
-                        pass
-                listenToPeersThread.join(timeout=1)
-                listenToAdminThread.join(timeout=1)
+            if peerAdminIP != 0:
+                peerNodeAdmin.connect((peerAdminIP, peerAdminPort)) # Connect to the admin
                 
-            else:
-                print(f"{BRIGHT}{RED}Admin has declined the request! Try again later{Style.RESET_ALL}")
+                print(f"{BRIGHT}{WHITE}Request has been sent to admin to join the room...{Style.RESET_ALL}")
+                responseCode = connectToAdmin(peerNodeAdmin, broadcastUDPPort, peerNodeListenPort, clientUsername)
+                if responseCode == 0:
+                    print(f"{BRIGHT}{MAGENTA}You have joined the room!{Style.RESET_ALL}")
+                    listenToAdminThread = threading.Thread(target=listenToAdmin, args=(peerNodeListen, peerNodeAdmin, broadcastUDP,))
+                    listenToAdminThread.start()
+                    listenToPeersThread = threading.Thread(target=listenToPeers, args=(broadcastUDP, peerNodeAdmin,))
+                    listenToPeersThread.start()
+                    sendMessageChatRoom(peerNodeAdmin, clientUsername, broadcastUDP, listenToAdminThread)
+                    sockets_to_close = [peerNodeAdmin, broadcastUDP, peerNodeListen]
+
+                    for sock in sockets_to_close:
+                        try:
+                            sock.close()
+                        except:
+                            pass
+                    listenToPeersThread.join(timeout=1)
+                    listenToAdminThread.join(timeout=1)
+                    
+                else:
+                    print(f"{BRIGHT}{RED}Admin has declined the request! Try again later{Style.RESET_ALL}")
                 
         elif option == "5":
             print(f"{YELLOW}1- {BLUE}Accept Invitations (Wait for Users Invites)\n{YELLOW}2- {BLUE}Send Invitation\n")
@@ -447,7 +452,7 @@ if __name__ == "__main__":
                 peerNodePrivate.bind(('localhost', 0))
                 peerIPPrivate = peerNodePrivate.getsockname()[0]
                 peerPortNumberPrivate = peerNodePrivate.getsockname()[1]
-                responseCode, peerIP, peerPort, peerUsername = sendPrivateInviteRequst(peerIPPrivate, peerPortNumberPrivate)
+                responseCode, peerIP, peerPort, peerUsername = sendPrivateInviteRequst()
                 if responseCode == 0:
                     try:
                         peerNodePrivate.connect((peerIP, int(peerPort)))

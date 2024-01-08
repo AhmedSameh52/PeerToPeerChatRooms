@@ -203,25 +203,24 @@ def deleteChatroomCommand(messageReceived):
         return 1
     
 def joinChatroomCommand(messageReceived):
-    # ACCEPT 200 -> 0 /// FAILED 500 -> 1 
+    # ACCEPT 200 -> 0 /// NOT_FOUND 401 -> 1 /// FAILED 500 -> 2
     try:
         chatRoomName = re.search(r'<(.*?)>', messageReceived[1]).group(1)
 
         index = next((index for index, ChatRoom in enumerate(chatroomsOnline) if ChatRoom.chatRoomName == chatRoomName), None)
-        
+        if index == None:
+            return 1, 0, 0
         ipAdmin = chatroomsOnline[index].admin.ip_address
         portAdmin = chatroomsOnline[index].admin.accept_peer_port_number
         return 0, ipAdmin, portAdmin
     except:
-        return 1, 0, 0
+        return 2, 0, 0
 
 def processInviteRequests(messageReceived):
     # ACCEPT 200 -> 0 /// NOT_FOUND 401 -> 1 /// FAILED 500 -> 2
     global peersInSearch
     try:
         username = re.search(r'<(.*?)>', messageReceived[1]).group(1)
-        ip = re.search(r'<(.*?)>', messageReceived[1]).group(1)
-        port = re.search(r'<(.*?)>', messageReceived[1]).group(1)
 
         index = next((index for index, Peer in enumerate(peersInSearch) if Peer.username == username), None)
         
@@ -313,6 +312,8 @@ def receive(client, address):
                     if responseCode == 0:
                         client.send(f"ACCEPT 200 <{ipAdmin}> <{portAdmin}>".encode(FORMAT))
                     elif responseCode == 1:
+                        client.send('NOT_FOUND 401'.encode(FORMAT))
+                    elif responseCode == 2:
                         client.send('FAILED 500'.encode(FORMAT))
                 case "INVITE":
                     responseCode, peerIP, peerPort = processInviteRequests(messageReceived)
